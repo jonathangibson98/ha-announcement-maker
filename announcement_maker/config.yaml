@@ -2,7 +2,7 @@ name: Announcement Maker
 version: "0.1.0"
 slug: announcement_maker
 description: Build AI-written voice announcements (weather, news, welcome home...) and push them to Home Assistant as scripts.
-url: https://github.com/YOURNAME/ha-announcement-maker
+url: https://github.com/jonathangibson98/ha-announcement-maker
 arch:
   - amd64
   - aarch64
