@@ -10,7 +10,7 @@ init: false
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:bullhorn
-panel_title: Announcements
+panel_title: Announcement Creator
 homeassistant_api: true
 options:
   ha_token: ""
