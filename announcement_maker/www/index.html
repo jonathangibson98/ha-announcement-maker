@@ -25,9 +25,14 @@ pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;ov
 .mu{color:var(--mu);font-size:14px}
 .warn{color:var(--ac);font-size:14px;margin:0 0 10px}
 .saved{display:flex;gap:6px;align-items:center;margin:4px 0}.saved span{flex:1}
+.plist{border:1px solid var(--bd);border-radius:10px;margin-top:4px;max-height:220px;overflow:auto}.plist:empty{display:none}
+.pi{padding:9px 10px;font-size:14px;border-bottom:1px solid var(--bd)}
+#v-set input[type=text],#v-set textarea,#v-set input[type=number]{margin-bottom:4px}
 </style></head><body><main>
 <h1>📣 Announcement Maker</h1>
+<div class="row"><button id="tc" class="p">Create</button><button id="ts">Settings</button></div>
 <p class="warn" id="warn"></p>
+<div id="v-create">
 <section><h2>Start from</h2><div class="chips" id="presets"></div></section>
 <section><h2>Script name</h2><input type="text" id="name" value="Weather and News"></section>
 <section><h2>What's in it</h2><div class="grid" id="srcs"></div></section>
@@ -46,7 +51,7 @@ pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;ov
 <div class="row"><button class="p" id="push">Push to Home Assistant</button><button id="run">Run it now</button><button id="copy">Copy YAML</button><button id="save">Save setup</button></div>
 <p class="mu" id="msg"></p></section>
 <section><h2>Saved setups</h2><div id="saved"></div></section>
-</main>
+</div><div id="v-set" style="display:none"></div></main>
 <script>
 const $=id=>document.getElementById(id),q=s=>[...document.querySelectorAll(s)];
 let O={};
@@ -66,9 +71,11 @@ function sources(){
 }
 function chk(parent,attr,key,label,on){const l=document.createElement('label');l.className='chk';const i=document.createElement('input');i.type='checkbox';i.dataset[attr]=key;i.checked=!!on;l.append(i,' '+label);parent.appendChild(l)}
 
-function init(){
+let ENT=[],S={},first=true;
+function build(){
+ O=S;['srcs','persbox','presets'].forEach(i=>$(i).innerHTML='');
  const miss=['ai_task_entity','tts_entity','speaker'].filter(k=>!O[k]);
- if(miss.length)$('warn').textContent='Set these in the add-on Configuration tab first: '+miss.join(', ');
+ $('warn').textContent=miss.length?'Open Settings and set: '+miss.join(', '):'';
  sources().forEach(([k,l])=>chk($('srcs'),'s',k,l,k==='household'));
  [['Hype','hype_style'],['Roast','roast_style'],['Sweetie Pie','sweet_style']].forEach(([k,o])=>{
   const l=document.createElement('label');l.textContent=k+' style';const t=document.createElement('textarea');t.dataset.p=k;t.value=O[o]||'';$('persbox').append(l,t)});
@@ -76,9 +83,48 @@ function init(){
  $('selwrap').style.display=hasSel?'':'none';$('usePers').checked=hasSel;
  $('len').value=O.default_length||1000;$('vol').value=O.default_volume||70;
  Object.entries(PRE).forEach(([k,[n,s]])=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{$('name').value=n;q('[data-s]').forEach(c=>c.checked=s.includes(c.dataset.s));$('json').checked=k==='Welcome Home'&&(O.notify_targets||[]).length>0;gen()};$('presets').appendChild(b)});
- try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}
- renderSaved();gen();
+ if(first){first=false;try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}renderSaved()}
+ gen();
 }
+
+const ROLES=[['Core',[['ai_task_entity','AI Task (writes the text)',['ai_task']],['tts_entity','Text-to-speech engine',['tts']],['speaker','Main speaker',['media_player']],['alexa_targets','Extra Alexa speakers',['media_player'],1],['notify_targets','Phone notifications',['notify'],1],['music_players','Music players to pause',['media_player'],1],['talking_flag','Talking flag (optional)',['input_boolean']],['personality_select','Personality dropdown (optional)',['input_select']]]],
+['Info sources',[['weather_entity','Weather',['weather']],['inside_temp_entity','Inside temperature',['sensor']],['news_entity','News feed sensor',['sensor']],['calendar_entities','Calendars',['calendar'],1],['todo_entity','To-do list',['todo']],['trash_entity','Trash day entity',['schedule','binary_sensor','input_boolean']],['locations_entity','Locations sensor (optional, blank = people)',['sensor']],['combined_info_entity','Extra context sensor (optional)',['sensor']]]]];
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(t==='input')e.type='text';if(x!=null)e.textContent=x;return e}
+function picker(doms,multi,get,set){
+ const w=el('div'),chips=el('div','chips'),inp=el('input'),list=el('div','plist');
+ inp.placeholder='Tap to search'+(doms?' ('+doms.map(d=>d+'.*').join(', ')+')':'');
+ const draw=()=>{chips.innerHTML='';get().forEach(v=>{const b=el('button','',v+'  \u2715');b.onclick=()=>{set(get().filter(x=>x!==v));draw()};chips.appendChild(b)});inp.style.display=(!multi&&get().length)?'none':''};
+ const show=()=>{const t=inp.value.toLowerCase();list.innerHTML='';
+  ENT.filter(e=>!doms||doms.includes(e.id.split('.')[0])).filter(e=>!t||e.id.includes(t)||e.name.toLowerCase().includes(t)).slice(0,30).forEach(e=>{
+   const d=el('div','pi',e.name+' \u00b7 '+e.id);d.onpointerdown=ev=>{ev.preventDefault();set(multi?[...new Set([...get(),e.id])]:[e.id]);inp.value='';list.innerHTML='';draw()};list.appendChild(d)})};
+ inp.oninput=show;inp.onfocus=show;inp.onblur=()=>setTimeout(()=>list.innerHTML='',150);
+ draw();w.append(chips,inp,list);return w;
+}
+function drawSettings(){
+ const v=$('v-set');v.innerHTML='';
+ const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
+ if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant, so the search lists are empty. Check the add-on log.'));
+ ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
+ const s2=sec('Context & text');
+ [['household_context','Who lives here, pets, friends (free text)','t'],['combined_info_attribute','Extra context sensor: attribute to read (blank = its state)','i'],['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
+  s2.appendChild(el('label','',l));const f=el(t==='t'?'textarea':'input');if(t==='n')f.type='number';f.value=S[k]??'';f.oninput=()=>{S[k]=t==='n'?+f.value:f.value};s2.appendChild(f)});
+ const s3=sec('Custom sources (concerts, sports, PS5, anything)'),rows=el('div');s3.appendChild(rows);
+ const dr=()=>{rows.innerHTML='';(S.custom_sources=S.custom_sources||[]).forEach((r,i)=>{const bx=el('div');bx.style.cssText='border:1px solid var(--bd);border-radius:10px;padding:8px;margin-bottom:8px';
+  const lb=el('input');lb.placeholder='Label, e.g. Concert 1';lb.value=r.label||'';lb.oninput=()=>r.label=lb.value;
+  const at=el('input');at.placeholder='Attribute (optional)';at.value=r.attribute||'';at.oninput=()=>r.attribute=at.value;
+  const rm=el('button','','Remove');rm.onclick=()=>{S.custom_sources.splice(i,1);dr()};
+  bx.append(lb,picker(null,false,()=>r.entity?[r.entity]:[],a=>{r.entity=a[0]||''}),at,rm);rows.appendChild(bx)})};
+ dr();const ad=el('button','','+ Add source');ad.onclick=()=>{S.custom_sources.push({label:'',entity:'',attribute:''});dr()};s3.appendChild(ad);
+ const s4=sec('Save'),io=el('textarea');io.placeholder='Export shows your settings here. Paste settings here and tap Import to load them.';io.style.minHeight='90px';
+ const r=el('div','row'),bs=el('button','p','Save settings'),ba=el('button','','Auto-fill empty'),be=el('button','','Export'),bi=el('button','','Import');
+ bs.onclick=async()=>{S.custom_sources=(S.custom_sources||[]).filter(c=>c.label&&c.entity);const x=await (await fetch('./api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)})).json();S=x;build();drawSettings();$('smsg').textContent='Saved.'};
+ ba.onclick=()=>{let n=0;ROLES.forEach(([,it])=>it.forEach(([k,,d,m])=>{if(m||S[k])return;const c=ENT.filter(e=>d.includes(e.id.split('.')[0]));if(c.length===1){S[k]=c[0].id;n++}}));drawSettings();$('smsg').textContent='Filled '+n+' (only where one match existed). Save to keep.'};
+ be.onclick=()=>{io.value=JSON.stringify(S,null,1)};
+ bi.onclick=()=>{try{S=Object.assign({},S,JSON.parse(io.value));drawSettings();$('smsg').textContent='Imported. Review, then Save.'}catch(e){$('smsg').textContent='That is not valid JSON.'}};
+ r.append(bs,ba,be,bi);s4.append(r,io,Object.assign(el('p','mu',''),{id:'smsg'}));
+}
+$('tc').onclick=()=>{$('v-create').style.display='';$('v-set').style.display='none';$('tc').className='p';$('ts').className=''};
+$('ts').onclick=()=>{$('v-create').style.display='none';$('v-set').style.display='';$('ts').className='p';$('tc').className=''};
 
 function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,extra:$('extra').value.trim(),json:$('json').checked,vol:+$('vol').value/100,pause:$('pause').checked}}
 
@@ -152,5 +198,5 @@ function renderSaved(){
 }
 $('save').onclick=()=>{const s=st();mem[s.name||'Untitled']=s;persist();renderSaved();$('msg').textContent='Saved.'};
 
-fetch('./api/options').then(r=>r.json()).then(o=>{O=o;init()}).catch(e=>{$('warn').textContent='Could not load add-on options: '+e});
+Promise.all([fetch('./api/options').then(r=>r.json()),fetch('./api/entities').then(r=>r.json()).catch(()=>[])]).then(([o,e])=>{S=o;ENT=e;build();drawSettings()}).catch(e=>{$('warn').textContent='Could not load add-on options: '+e});
 </script></body></html>
