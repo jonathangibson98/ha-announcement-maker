@@ -42,8 +42,8 @@ pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;ov
 <div id="persbox"></div>
 <label>Max length (characters)</label><input type="number" id="len" min="200" step="100">
 <label>Extra instructions (optional)</label><textarea id="extra" placeholder="e.g. If it's the weekend, ask if anyone is coming over."></textarea>
-<label class="chk"><input type="checkbox" id="json"> Also send a short banner to phones (needs notify targets in add-on options)</label>
 </section>
+<section><h2>Where it goes</h2><div id="outs"></div><p class="mu">Phone notifications get a short banner. Speaker and Alexa get the full announcement.</p></section>
 <section><h2>Volume</h2>
 <label>Speaker volume: <b id="volv"></b>%</label><input type="range" id="vol" min="10" max="100" style="width:100%">
 <label class="chk"><input type="checkbox" id="pause" checked> Pause music while talking, resume after</label></section>
@@ -73,16 +73,19 @@ function chk(parent,attr,key,label,on){const l=document.createElement('label');l
 
 let ENT=[],S={},first=true;
 function build(){
- O=S;['srcs','persbox','presets'].forEach(i=>$(i).innerHTML='');
+ O=S;['srcs','persbox','presets','outs'].forEach(i=>$(i).innerHTML='');
  const miss=['ai_task_entity','tts_entity','speaker'].filter(k=>!O[k]);
  $('warn').textContent=miss.length?'Open Settings and set: '+miss.join(', '):'';
  sources().forEach(([k,l])=>chk($('srcs'),'s',k,l,k==='household'));
  [['Hype','hype_style'],['Roast','roast_style'],['Sweetie Pie','sweet_style']].forEach(([k,o])=>{
   const l=document.createElement('label');l.textContent=k+' style';const t=document.createElement('textarea');t.dataset.p=k;t.value=O[o]||'';$('persbox').append(l,t)});
+ if(O.speaker&&O.tts_entity)chk($('outs'),'o','tts','Speak on main speaker (TTS)',1);
+ (O.alexa_targets||[]).forEach(a=>chk($('outs'),'o','a:'+a,'Alexa: '+a,1));
+ (O.notify_targets||[]).forEach(a=>chk($('outs'),'o','n:'+a,'Notify: '+a,0));
  const hasSel=!!O.personality_select;
  $('selwrap').style.display=hasSel?'':'none';$('usePers').checked=hasSel;
  $('len').value=O.default_length||1000;$('vol').value=O.default_volume||70;
- Object.entries(PRE).forEach(([k,[n,s]])=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{$('name').value=n;q('[data-s]').forEach(c=>c.checked=s.includes(c.dataset.s));$('json').checked=k==='Welcome Home'&&(O.notify_targets||[]).length>0;gen()};$('presets').appendChild(b)});
+ Object.entries(PRE).forEach(([k,[n,s]])=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{$('name').value=n;q('[data-s]').forEach(c=>c.checked=s.includes(c.dataset.s));q('[data-o^="n:"]').forEach(c=>c.checked=k==='Welcome Home');gen()};$('presets').appendChild(b)});
  if(first){first=false;try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}renderSaved()}
  gen();
 }
@@ -126,7 +129,7 @@ function drawSettings(){
 $('tc').onclick=()=>{$('v-create').style.display='';$('v-set').style.display='none';$('tc').className='p';$('ts').className=''};
 $('ts').onclick=()=>{$('v-create').style.display='none';$('v-set').style.display='';$('ts').className='p';$('tc').className=''};
 
-function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,extra:$('extra').value.trim(),json:$('json').checked,vol:+$('vol').value/100,pause:$('pause').checked}}
+function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,extra:$('extra').value.trim(),outs:q('[data-o]:checked').map(c=>c.dataset.o),json:q('[data-o^="n:"]:checked').length>0,vol:+$('vol').value/100,pause:$('pause').checked}}
 
 function instr(s,rules){
  const has=x=>s.src.includes(x),L=[],W=O.weather_entity;
@@ -147,7 +150,7 @@ function instr(s,rules){
 }
 
 function gen(){
- const s=st(),has=x=>s.src.includes(x),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag;
+ const s=st(),has=x=>s.src.includes(x),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag,sp_on=s.outs.includes('tts')&&!!O.tts_entity&&!!O.speaker,al=(O.alexa_targets||[]).filter(a=>s.outs.includes('a:'+a)),nt=(O.notify_targets||[]).filter(a=>s.outs.includes('n:'+a)),speak=sp_on||al.length>0;
  let y='alias: '+n+"\ndescription: Made with Announcement Maker\nsequence:\n  - variables:\n      current_time: '{{ now().strftime(''%A, %B %-d %Y %-I:%M %p %Z'') }}'\n";
  if(has('household')&&(O.household_context||O.combined_info_entity)){
   const e=O.combined_info_entity,a=O.combined_info_attribute;
@@ -157,23 +160,24 @@ function gen(){
  if(has('weather'))y+=`  - alias: Get daily forecast\n    action: weather.get_forecasts\n    target:\n      entity_id: ${O.weather_entity}\n    data:\n      type: daily\n    response_variable: forecast_data\n`;
  if(has('calendar'))y+="  - alias: Get calendar events\n    action: calendar.get_events\n    target:\n      entity_id:\n"+O.calendar_entities.map(c=>"        - "+c).join('\n')+"\n    data:\n      start_date_time: \"{{ now().strftime('%Y-%m-%d 00:00:00') }}\"\n      duration:\n        days: 7\n    response_variable: calendars\n";
  if(has('todo'))y+=`  - action: todo.get_items\n    target:\n      entity_id: ${O.todo_entity}\n    data:\n      status: needs_action\n    response_variable: items\n`;
- if(s.pause&&players.length)y+="  - alias: Pause music if playing\n    if:\n      - condition: state\n        entity_id:\n"+players.map(p=>"          - "+p).join('\n')+"\n        state: playing\n        match: any\n    then:\n      - action: media_player.media_pause\n        target:\n          entity_id: "+players[0]+"\n";
- if(flag)y+=`  - action: input_boolean.turn_on\n    target:\n      entity_id: ${flag}\n`;
- y+=`  - delay:\n      seconds: 3\n  - action: media_player.volume_set\n    target:\n      entity_id: ${A}\n    data:\n      volume_level: ${s.vol}\n`;
+ if(speak&&s.pause&&players.length)y+="  - alias: Pause music if playing\n    if:\n      - condition: state\n        entity_id:\n"+players.map(p=>"          - "+p).join('\n')+"\n        state: playing\n        match: any\n    then:\n      - action: media_player.media_pause\n        target:\n          entity_id: "+players[0]+"\n";
+ if(speak&&flag)y+=`  - action: input_boolean.turn_on\n    target:\n      entity_id: ${flag}\n`;
+ if(sp_on)y+=`  - delay:\n      seconds: 3\n  - action: media_player.volume_set\n    target:\n      entity_id: ${A}\n    data:\n      volume_level: ${s.vol}\n`;
  const task=r=>"- action: ai_task.generate_data\n  data:\n    task_name: "+n+"\n    entity_id: "+(O.ai_task_entity||'ai_task.SET_ME')+"\n    instructions: |-\n"+ind(instr(s,r),6)+"\n  response_variable: announcement";
  if(s.usePers){
   y+="  - alias: Generate announcement\n    choose:\n";
   Object.keys(s.pers).forEach(k=>{y+=`      - conditions:\n          - condition: state\n            entity_id: ${O.personality_select}\n            state: ${JSON.stringify(k)}\n        sequence:\n`+ind(task(s.pers[k]),10)+"\n"});
  } else y+=ind(task(s.pers[s.one]),2)+"\n";
  const sp=s.json?"{{ (announcement.data | from_json).speech }}":"{{ announcement.data }}";
- y+=`  - variables:\n      speech: '${sp}'\n  - alias: Speak\n    parallel:\n      - action: tts.speak\n        target:\n          entity_id: ${O.tts_entity||'tts.SET_ME'}\n        data:\n          message: '{{ speech }}'\n          media_player_entity_id: ${A}\n`;
- const al=(O.alexa_targets||[]);
+ y+=`  - variables:\n      speech: '${sp}'\n  - alias: Deliver\n    parallel:\n`;
+ if(sp_on)y+=`      - action: tts.speak\n        target:\n          entity_id: ${O.tts_entity}\n        data:\n          message: '{{ speech }}'\n          media_player_entity_id: ${A}\n`;
  if(al.length)y+="      - action: notify.alexa_media\n        data:\n          target:\n"+al.map(a=>"            - "+a).join('\n')+"\n          message: '{{ speech }}'\n          data:\n            type: tts\n";
- const nt=(O.notify_targets||[]);
- if(s.json&&nt.length)y+="      - action: notify.send_message\n        target:\n          entity_id:\n"+nt.map(a=>"            - "+a).join('\n')+"\n        data:\n          message: '{{ (announcement.data | from_json).notification }}'\n";
- y+=`  - delay:\n      seconds: 15\n  - wait_for_trigger:\n      - trigger: state\n        entity_id: ${A}\n        to:\n          - paused\n          - idle\n    timeout:\n      seconds: 120\n    continue_on_timeout: true\n  - delay:\n      seconds: 5\n`;
- if(flag)y+=`  - action: input_boolean.turn_off\n    target:\n      entity_id: ${flag}\n`;
- if(s.pause&&players.length)y+="  - if:\n      - condition: state\n        entity_id: "+players[0]+"\n        state: paused\n    then:\n      - action: media_player.media_play\n        target:\n          entity_id: "+players[0]+"\n";
+ if(nt.length)y+="      - action: notify.send_message\n        target:\n          entity_id:\n"+nt.map(a=>"            - "+a).join('\n')+"\n        data:\n          message: '{{ (announcement.data | from_json).notification }}'\n";
+ if(!sp_on&&!al.length&&!nt.length){y+="      - delay:\n          seconds: 1\n";$('msg').textContent='Pick at least one output under Where it goes.'}
+ if(sp_on)y+=`  - delay:\n      seconds: 15\n  - wait_for_trigger:\n      - trigger: state\n        entity_id: ${A}\n        to:\n          - paused\n          - idle\n    timeout:\n      seconds: 120\n    continue_on_timeout: true\n  - delay:\n      seconds: 5\n`;
+ else if(al.length)y+="  - delay:\n      seconds: 40\n";
+ if(speak&&flag)y+=`  - action: input_boolean.turn_off\n    target:\n      entity_id: ${flag}\n`;
+ if(speak&&s.pause&&players.length)y+="  - if:\n      - condition: state\n        entity_id: "+players[0]+"\n        state: paused\n    then:\n      - action: media_player.media_play\n        target:\n          entity_id: "+players[0]+"\n";
  $('out').textContent=y;
  $('onewrap').style.display=s.usePers?'none':'block';$('volv').textContent=Math.round(s.vol*100);
 }
@@ -193,7 +197,7 @@ function renderSaved(){
  const box=$('saved');box.innerHTML='';const k=Object.keys(mem);
  if(!k.length){box.innerHTML='<span class="mu">Nothing saved yet.</span>';return}
  k.forEach(n=>{const d=document.createElement('div');d.className='saved';d.innerHTML='<span></span><button>Load</button><button>x</button>';d.firstChild.textContent=n;
-  d.children[1].onclick=()=>{const s=mem[n];$('name').value=s.name;q('[data-s]').forEach(c=>c.checked=s.src.includes(c.dataset.s));q('[data-p]').forEach(t=>t.value=s.pers[t.dataset.p]||t.value);$('usePers').checked=s.usePers;$('one').value=s.one;$('len').value=s.len;$('extra').value=s.extra;$('json').checked=s.json;$('vol').value=Math.round(s.vol*100);$('pause').checked=s.pause;gen()};
+  d.children[1].onclick=()=>{const s=mem[n];$('name').value=s.name;q('[data-s]').forEach(c=>c.checked=s.src.includes(c.dataset.s));q('[data-p]').forEach(t=>t.value=s.pers[t.dataset.p]||t.value);$('usePers').checked=s.usePers;$('one').value=s.one;$('len').value=s.len;$('extra').value=s.extra;q('[data-o]').forEach(c=>c.checked=(s.outs||[]).includes(c.dataset.o));$('vol').value=Math.round(s.vol*100);$('pause').checked=s.pause;gen()};
   d.children[2].onclick=()=>{delete mem[n];persist();renderSaved()};box.appendChild(d)});
 }
 $('save').onclick=()=>{const s=st();mem[s.name||'Untitled']=s;persist();renderSaved();$('msg').textContent='Saved.'};
