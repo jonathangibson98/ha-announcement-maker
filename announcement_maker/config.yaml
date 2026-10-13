@@ -1,0 +1,75 @@
+name: Announcement Maker
+version: "0.1.0"
+slug: announcement_maker
+description: Build AI-written voice announcements (weather, news, welcome home...) and push them to Home Assistant as scripts.
+url: https://github.com/YOURNAME/ha-announcement-maker
+arch:
+  - amd64
+  - aarch64
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:bullhorn
+panel_title: Announcements
+homeassistant_api: true
+options:
+  ha_token: ""
+  ha_url: "http://homeassistant:8123"
+  ai_task_entity: ""
+  tts_entity: ""
+  speaker: ""
+  alexa_targets: []
+  notify_targets: []
+  music_players: []
+  talking_flag: ""
+  personality_select: ""
+  household_context: ""
+  combined_info_entity: ""
+  combined_info_attribute: ""
+  locations_entity: ""
+  weather_entity: ""
+  inside_temp_entity: ""
+  news_entity: ""
+  calendar_entities: []
+  todo_entity: ""
+  trash_entity: ""
+  custom_sources: []
+  default_volume: 70
+  default_length: 1000
+  hype_style: "Be funny and hype us up. Boost our confidence. PG-13 language, no insults."
+  roast_style: "Roast us super aggressively. Rated-R, heavy profanity, funny not hurtful."
+  sweet_style: "Be super sweet and warm to everyone. Playful teasing only, never mean."
+schema:
+  ha_token: password?
+  ha_url: str?
+  ai_task_entity: str
+  tts_entity: str
+  speaker: str
+  alexa_targets:
+    - str?
+  notify_targets:
+    - str?
+  music_players:
+    - str?
+  talking_flag: str?
+  personality_select: str?
+  household_context: str?
+  combined_info_entity: str?
+  combined_info_attribute: str?
+  locations_entity: str?
+  weather_entity: str?
+  inside_temp_entity: str?
+  news_entity: str?
+  calendar_entities:
+    - str?
+  todo_entity: str?
+  trash_entity: str?
+  custom_sources:
+    - label: str
+      entity: str
+      attribute: str?
+  default_volume: int(10,100)
+  default_length: int(200,5000)
+  hype_style: str
+  roast_style: str
+  sweet_style: str
