@@ -109,8 +109,7 @@ function drawSettings(){
  if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant, so the search lists are empty. Check the add-on log.'));
  ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
  const sh=sec('AI source helper');
- sh.append(el('p','mu','Pick an entity and say what you want from it. Your AI Task looks at it and sets up a custom source for you.'),el('label','','AI Task for this helper (blank = use the main AI Task)'),
-  picker(['ai_task'],false,()=>S.helper_ai_task_entity?[S.helper_ai_task_entity]:[],a=>{S.helper_ai_task_entity=a[0]||''}),el('label','','Entity to test'),
+ sh.append(el('p','mu','Pick an entity and say what you want from it. Your AI Task looks at it and sets up a custom source for you. Using: '+(S.helper_ai_task_entity||S.ai_task_entity||'nothing set yet')+(S.helper_ai_task_entity?' (from the add-on Configuration tab)':' (your main AI Task; you can set a different one in the add-on Configuration tab as helper_ai_task_entity)')),el('label','','Entity to test'),
   picker(null,false,()=>HEL.entity?[HEL.entity]:[],a=>{HEL.entity=a[0]||''}),el('label','','What do you want from it?'));
  const gt=el('textarea');gt.placeholder='e.g. Days left until the concert and where it is';gt.value=HEL.goal;gt.oninput=()=>{HEL.goal=gt.value};
  const tb=el('button','p','Test it'),res=el('div');
