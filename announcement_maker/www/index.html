@@ -71,7 +71,7 @@ function sources(){
 }
 function chk(parent,attr,key,label,on){const l=document.createElement('label');l.className='chk';const i=document.createElement('input');i.type='checkbox';i.dataset[attr]=key;i.checked=!!on;l.append(i,' '+label);parent.appendChild(l)}
 
-let ENT=[],S={},first=true;
+let ENT=[],S={},first=true,HEL={entity:'',goal:''};
 function build(){
  O=S;['srcs','persbox','presets','outs'].forEach(i=>$(i).innerHTML='');
  const miss=['ai_task_entity','tts_entity','speaker'].filter(k=>!O[k]);
@@ -108,6 +108,24 @@ function drawSettings(){
  const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
  if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant, so the search lists are empty. Check the add-on log.'));
  ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
+ const sh=sec('AI source helper');
+ sh.append(el('p','mu','Pick an entity and say what you want from it. Your AI Task looks at it and sets up a custom source for you.'),el('label','','AI Task for this helper (blank = use the main AI Task)'),
+  picker(['ai_task'],false,()=>S.helper_ai_task_entity?[S.helper_ai_task_entity]:[],a=>{S.helper_ai_task_entity=a[0]||''}),el('label','','Entity to test'),
+  picker(null,false,()=>HEL.entity?[HEL.entity]:[],a=>{HEL.entity=a[0]||''}),el('label','','What do you want from it?'));
+ const gt=el('textarea');gt.placeholder='e.g. Days left until the concert and where it is';gt.value=HEL.goal;gt.oninput=()=>{HEL.goal=gt.value};
+ const tb=el('button','p','Test it'),res=el('div');
+ tb.onclick=async()=>{
+  if(!HEL.entity||!HEL.goal){res.textContent='Pick an entity and say what you want.';return}
+  res.textContent='Asking your AI Task...';tb.disabled=true;
+  try{const r=await (await fetch('./api/helper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity:HEL.entity,goal:HEL.goal,ai:S.helper_ai_task_entity||S.ai_task_entity})})).json();
+   if(!r.ok){res.textContent=r.error;return}
+   res.innerHTML='';
+   res.append(el('p','','Suggested: '+r.label+(r.attribute?' (attribute: '+r.attribute+')':' (whole entity)')),el('p','mu',r.note),el('p','mu','Preview: '+r.preview));
+   const ab=el('button','p','Add as custom source');
+   ab.onclick=()=>{(S.custom_sources=S.custom_sources||[]).push({label:r.label,entity:HEL.entity,attribute:r.attribute});drawSettings();$('smsg').textContent='Added to custom sources. Tap Save settings to keep it.'};
+   res.appendChild(ab);
+  }catch(e){res.textContent='Failed: '+e}finally{tb.disabled=false}};
+ sh.append(gt,tb,res);
  const s2=sec('Context & text');
  [['household_context','Who lives here, pets, friends (free text)','t'],['combined_info_attribute','Extra context sensor: attribute to read (blank = its state)','i'],['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
   s2.appendChild(el('label','',l));const f=el(t==='t'?'textarea':'input');if(t==='n')f.type='number';f.value=S[k]??'';f.oninput=()=>{S[k]=t==='n'?+f.value:f.value};s2.appendChild(f)});
