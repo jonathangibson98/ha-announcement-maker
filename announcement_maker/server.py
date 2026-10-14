@@ -41,6 +41,32 @@ ID_RE = re.compile(r'^[a-z0-9_]{1,60}$')
 ENT_RE = re.compile(r'^[a-z_]+\.[a-z0-9_]+$')
 
 
+def helper_text(body):
+    idea, ai = str(body.get('idea', ''))[:1000], body.get('ai', '')
+    srcs = [x for x in body.get('sources', []) if isinstance(x, dict) and re.match(r'^\w+$', str(x.get('id', '')))]
+    if not (idea and ENT_RE.match(ai) and ai.startswith('ai_task.')):
+        return {'ok': False, 'error': 'Describe what you want and set an AI Task entity.'}
+    prompt = ('You help write voice announcement scripts for Home Assistant. Later, an AI will receive live data plus the '
+              'instructions you write, and will write a spoken announcement.\nData sources available (id: label): %s\n'
+              'Notes: calendar events are grouped under each calendar entity id (calendars: %s). Weather has current conditions '
+              'plus a daily forecast for up to 7 days.\nUser\'s idea: %s\n'
+              'Reply with ONLY JSON, no code fences: {"name": "short script name", "sources": ["ids of sources needed"], '
+              '"task": "clear instructions for the announcement writer, 1-5 sentences, including any conditions"}'
+              % ('; '.join('%s: %s' % (x['id'], x.get('label', '')) for x in srcs), ', '.join(body.get('calendars', [])) or 'none', idea))
+    code, text = ha('POST', '/api/services/ai_task/generate_data?return_response',
+                    {'entity_id': ai, 'task_name': 'Instruction helper', 'instructions': prompt}, timeout=90)
+    if code != 200:
+        return {'ok': False, 'error': 'AI Task failed (%s): %s' % (code, text[:200])}
+    try:
+        data = json.loads(text)['service_response']['data']
+        j = data if isinstance(data, dict) else json.loads(re.search(r'\{.*\}', data, re.S).group(0))
+    except Exception:
+        return {'ok': False, 'error': 'The AI answer was not usable JSON. Try rewording.'}
+    ids = {x['id'] for x in srcs}
+    return {'ok': True, 'name': str(j.get('name') or '')[:60], 'task': str(j.get('task') or '')[:1500],
+            'sources': [i for i in (j.get('sources') or []) if i in ids]}
+
+
 def helper(body):
     ent, goal, ai = body.get('entity', ''), str(body.get('goal', ''))[:500], body.get('ai', '')
     if not (ENT_RE.match(ent) and ENT_RE.match(ai) and ai.startswith('ai_task.') and goal):
@@ -117,6 +143,14 @@ class Handler(BaseHTTPRequestHandler):
                         for e in json.loads(text)] if code == 200 else []
             except ValueError:
                 ents = []
+            code, text = ha('GET', '/api/services')   # notify.mobile_app_* are services, not entities
+            try:
+                for d in (json.loads(text) if code == 200 else []):
+                    if d.get('domain') == 'notify':
+                        ents += [{'id': 'notify.' + n, 'name': n.replace('_', ' ') + ' (service)', 'svc': True}
+                                 for n in d.get('services', {}) if n not in ('send_message', 'persistent_notification')]
+            except ValueError:
+                pass
             return self.send(200, sorted(ents, key=lambda e: e['id']))
         self.send(404, {'error': 'not found'})
 
@@ -132,7 +166,7 @@ class Handler(BaseHTTPRequestHandler):
             SETTINGS_FILE.write_text(json.dumps(clean))
             return self.send(200, load_settings())
         if self.path.split('?')[0] == '/api/helper':
-            return self.send(200, helper(body))
+            return self.send(200, helper_text(body) if body.get('mode') == 'instructions' else helper(body))
         sid = str(body.get('id', ''))
         if not ID_RE.match(sid):
             return self.send(400, {'error': 'script id must be lowercase letters, numbers, underscores'})

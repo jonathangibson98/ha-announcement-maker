@@ -11,6 +11,12 @@ All setup happens inside the app on the **Settings** tab, not in this Configurat
 
 The only add-on options are `ha_token`, `ha_url` and `helper_ai_task_entity`. Leave them blank unless Push to Home Assistant fails with the default Supervisor access.
 
-## AI source helper
+## Tabs
 
-On the Settings tab, pick any entity, type what you want from it ("days left until the concert"), and tap **Test it**. Your AI Task reads the entity and suggests a label and attribute, shows a live preview, and **Add as custom source** fills it in for you. To use a different AI Task for the helper, set `helper_ai_task_entity` in the add-on Configuration tab. Blank means it uses your main AI Task. Tap **Save settings** afterward.
+- **Create:** pick data, personality, then type **What should it do?** in plain words (for example: "look at the weather for the week, but only if my work calendar has something on"). Calendar events are grouped by calendar, so the AI can tell your work calendar from the others.
+- **Helper:** (1) describe what you want and the AI writes the instructions and ticks the data it needs; (2) test an entity and add it as a custom source.
+- **Settings:** your entities, notify targets, styles, custom sources.
+
+Phone notifications: entities (`notify.jon`) and services (`notify.mobile_app_*`, shown as "service") both work, and you can type an id that isn't listed.
+
+To use a different AI Task for the helpers, set `helper_ai_task_entity` in the add-on Configuration tab. Blank means the main AI Task.
