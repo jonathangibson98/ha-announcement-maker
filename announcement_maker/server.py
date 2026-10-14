@@ -32,6 +32,8 @@ def load_settings():
         s.update({k: v for k, v in json.load(open(SETTINGS_FILE)).items() if k in DEFAULTS})
     except (OSError, ValueError):
         pass
+    if OPTS.get('helper_ai_task_entity'):   # set in the add-on Configuration tab
+        s['helper_ai_task_entity'] = OPTS['helper_ai_task_entity']
     return s
 
 INGRESS_IP = '172.30.32.2'   # only the HA ingress gateway may talk to us
@@ -126,7 +128,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self.send(400, {'error': 'bad json'})
         if self.path.split('?')[0] == '/api/settings':
-            clean = {k: v for k, v in body.items() if k in DEFAULTS}
+            clean = {k: v for k, v in body.items() if k in DEFAULTS and k != 'helper_ai_task_entity'}
             SETTINGS_FILE.write_text(json.dumps(clean))
             return self.send(200, load_settings())
         if self.path.split('?')[0] == '/api/helper':

@@ -1,5 +1,5 @@
 name: Announcement Maker
-version: "0.2.2"
+version: "0.2.3"
 slug: announcement_maker
 description: Build AI-written voice announcements (weather, news, welcome home...) and push them to Home Assistant as scripts.
 url: https://github.com/jonathangibson98/ha-announcement-maker
@@ -15,6 +15,8 @@ homeassistant_api: true
 options:
   ha_token: ""
   ha_url: "http://homeassistant:8123"
+  helper_ai_task_entity: ""
 schema:
   ha_token: password?
   ha_url: str?
+  helper_ai_task_entity: str?
