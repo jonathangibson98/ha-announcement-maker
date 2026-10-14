@@ -7,43 +7,47 @@
 @media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1f1f1d;--tx:#f0efe9;--mu:#9a9a92;--bd:#34342f;--ac:#ff7a45;--ac2:#141413}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif}
-main{max-width:760px;margin:0 auto;padding:16px}
-h1{font-size:22px;margin:4px 0 12px}
+main{max-width:760px;margin:0 auto;padding:14px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5}
+.tabs button{border-radius:12px;padding:11px 6px;font-weight:600}
 section{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:0 0 10px}
-label{display:block;font-size:14px;margin:8px 0 4px}
-input[type=text],input[type=number],textarea,select{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px}
-textarea{min-height:60px;resize:vertical}
+label{display:block;font-size:14px;margin:10px 0 4px}
+input[type=text],input[type=number],textarea,select{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:11px;margin-bottom:2px}
+textarea{min-height:76px;resize:vertical}
 .chips,.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-button{font:inherit;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:999px;padding:8px 14px;cursor:pointer}
+button{font:inherit;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:999px;padding:9px 14px;cursor:pointer}
 button.p{background:var(--ac);color:var(--ac2);border-color:var(--ac);font-weight:600}
-.chk{display:flex;align-items:center;gap:10px;padding:6px 0;margin:0;font-size:15px}
-.chk input{width:20px;height:20px;accent-color:var(--ac)}
+button:disabled{opacity:.5}
+.chk{display:flex;align-items:center;gap:10px;padding:7px 0;margin:0;font-size:15px}
+.chk input{width:20px;height:20px;accent-color:var(--ac);flex:none}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:460px){.grid{grid-template-columns:1fr}}
-pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;overflow:auto;font:12px/1.45 ui-monospace,monospace;max-height:380px}
-.mu{color:var(--mu);font-size:14px}
+pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;overflow:auto;font:12px/1.45 ui-monospace,monospace;max-height:360px}
+.mu{color:var(--mu);font-size:14px;margin:6px 0}
 .warn{color:var(--ac);font-size:14px;margin:0 0 10px}
 .saved{display:flex;gap:6px;align-items:center;margin:4px 0}.saved span{flex:1}
-.plist{border:1px solid var(--bd);border-radius:10px;margin-top:4px;max-height:220px;overflow:auto}.plist:empty{display:none}
-.pi{padding:9px 10px;font-size:14px;border-bottom:1px solid var(--bd)}
-#v-set input[type=text],#v-set textarea,#v-set input[type=number]{margin-bottom:4px}
+.plist{border:1px solid var(--bd);border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;background:var(--card)}.plist:empty{display:none}
+.pi{padding:11px 10px;font-size:14px;border-bottom:1px solid var(--bd)}
+.box{border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
+details summary{cursor:pointer;font-size:14px;color:var(--mu);margin-top:8px}
 </style></head><body><main>
-<h1>📣 Announcement Maker</h1>
-<div class="row"><button id="tc" class="p">Create</button><button id="ts">Settings</button></div>
+<div class="tabs"><button id="tc" class="p">Create</button><button id="th">Helper</button><button id="ts">Settings</button></div>
 <p class="warn" id="warn"></p>
+
 <div id="v-create">
-<section><h2>Start from</h2><div class="chips" id="presets"></div></section>
+<section><h2>Start from</h2><div class="chips" id="presets"></div><p class="warn" id="pnote"></p></section>
 <section><h2>Script name</h2><input type="text" id="name" value="Weather and News"></section>
-<section><h2>What's in it</h2><div class="grid" id="srcs"></div></section>
+<section><h2>Data to include</h2><div class="grid" id="srcs"></div></section>
 <section><h2>Personality</h2>
 <div id="selwrap"><label class="chk"><input type="checkbox" id="usePers"> Follow my personality dropdown in Home Assistant</label></div>
 <div id="onewrap"><label>Always use</label><select id="one"><option>Hype</option><option>Roast</option><option>Sweetie Pie</option></select></div>
-<div id="persbox"></div>
-<label>Max length (characters)</label><input type="number" id="len" min="200" step="100">
-<label>Extra instructions (optional)</label><textarea id="extra" placeholder="e.g. If it's the weekend, ask if anyone is coming over."></textarea>
-</section>
-<section><h2>Where it goes</h2><div id="outs"></div><p class="mu">Phone notifications get a short banner. Speaker and Alexa get the full announcement.</p></section>
+<details><summary>Edit personality styles</summary><div id="persbox"></div></details></section>
+<section><h2>What should it do?</h2>
+<textarea id="task" placeholder="e.g. Look at the weather for the week and tell me about it, but only if my work calendar has something on."></textarea>
+<div class="row"><button id="gohelp">Help me write this</button></div>
+<label>Max length (characters)</label><input type="number" id="len" min="200" step="100"></section>
+<section><h2>Where it goes</h2><div id="outs"></div><p class="mu">Phones get a short banner. Speaker and Alexa get the full announcement.</p></section>
 <section><h2>Volume</h2>
 <label>Speaker volume: <b id="volv"></b>%</label><input type="range" id="vol" min="10" max="100" style="width:100%">
 <label class="chk"><input type="checkbox" id="pause" checked> Pause music while talking, resume after</label></section>
@@ -51,17 +55,29 @@ pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;ov
 <div class="row"><button class="p" id="push">Push to Home Assistant</button><button id="run">Run it now</button><button id="copy">Copy YAML</button><button id="save">Save setup</button></div>
 <p class="mu" id="msg"></p></section>
 <section><h2>Saved setups</h2><div id="saved"></div></section>
-</div><div id="v-set" style="display:none"></div></main>
+</div>
+
+<div id="v-help" style="display:none"></div>
+<div id="v-set" style="display:none"></div>
+</main>
 <script>
 const $=id=>document.getElementById(id),q=s=>[...document.querySelectorAll(s)];
-let O={};
+let O={},S={},ENT=[],first=true,mem={},HEL={entity:'',goal:'',idea:''};
 const ind=(t,n)=>t.split('\n').map(l=>l?' '.repeat(n)+l:l).join('\n');
 const slug=s=>(s||'announcement').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'announcement';
-const PRE={'Weather & News':['Weather and News',['household','locations','weather','news']],'Welcome Home':['Welcome Home',['household','locations','calendar','todo','trash']],"You're Late":["You're Late",['household','locations']],'Blank':['My Announcement',['household']]};
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(t==='input')e.type='text';if(x!=null)e.textContent=x;return e}
+function chk(parent,attr,key,label,on){const l=el('label','chk'),i=el('input');i.type='checkbox';i.dataset[attr]=key;i.checked=!!on;l.append(i,' '+label);parent.appendChild(l)}
+const aiName=()=>S.helper_ai_task_entity||S.ai_task_entity||'';
+
+const PRE={
+'Weather & News':{name:'Weather and News',src:['household','locations','weather','news'],task:'Give a quick weather rundown for today and the week ahead, then the top news: local first, then US, then world.'},
+'Welcome Home':{name:'Welcome Home',src:['household','locations','calendar','todo','trash'],notify:1,task:'Welcome home whoever just arrived. Go over the to-do list, remind us about the trash if it is going out, then run through what is on the calendar this week.'},
+"You're Late":{name:"You're Late",src:['household','locations'],task:"Call out every person by name. Roast whoever is not home and work in where they are. Be nicer to whoever is home."},
+'Blank':{name:'My Announcement',src:['household'],task:''}};
 
 function sources(){
  const L=[['household','Household & friends info'],['locations','Where everybody is']];
- if(O.weather_entity)L.push(['weather','Weather + tomorrow']);
+ if(O.weather_entity)L.push(['weather','Weather (now + 7 days)']);
  if(O.news_entity)L.push(['news','News headlines']);
  if((O.calendar_entities||[]).length)L.push(['calendar','Calendar (7 days)']);
  if(O.todo_entity)L.push(['todo','To-do list']);
@@ -69,105 +85,65 @@ function sources(){
  (O.custom_sources||[]).forEach((c,i)=>L.push(['c'+i,c.label]));
  return L;
 }
-function chk(parent,attr,key,label,on){const l=document.createElement('label');l.className='chk';const i=document.createElement('input');i.type='checkbox';i.dataset[attr]=key;i.checked=!!on;l.append(i,' '+label);parent.appendChild(l)}
+function showTab(t){[['create','tc'],['help','th'],['set','ts']].forEach(([k,b])=>{$('v-'+k).style.display=k===t?'':'none';$(b).className=k===t?'p':''});window.scrollTo(0,0)}
+$('tc').onclick=()=>showTab('create');$('th').onclick=()=>showTab('help');$('ts').onclick=()=>showTab('set');$('gohelp').onclick=()=>showTab('help');
 
-let ENT=[],S={},first=true,HEL={entity:'',goal:''};
+function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),outs:q('[data-o]:checked').map(c=>c.dataset.o),json:q('[data-o^="n:"]:checked').length>0,pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,task:$('task').value.trim(),vol:+$('vol').value/100,pause:$('pause').checked}}
+function applyState(s){
+ if(s.name!=null)$('name').value=s.name;
+ q('[data-s]').forEach(c=>c.checked=(s.src||[]).includes(c.dataset.s));
+ q('[data-o]').forEach(c=>c.checked=(s.outs||[]).includes(c.dataset.o));
+ q('[data-p]').forEach(t=>{if(s.pers&&s.pers[t.dataset.p]!=null)t.value=s.pers[t.dataset.p]});
+ if(s.usePers!=null)$('usePers').checked=!!s.usePers&&!!O.personality_select;
+ if(s.one)$('one').value=s.one;
+ if(s.len)$('len').value=s.len;
+ $('task').value=s.task??s.extra??'';
+ if(s.vol!=null)$('vol').value=Math.round(s.vol*100);
+ if(s.pause!=null)$('pause').checked=s.pause;
+ gen();
+}
+
 function build(){
+ const prev=first?null:st();
  O=S;['srcs','persbox','presets','outs'].forEach(i=>$(i).innerHTML='');
  const miss=['ai_task_entity','tts_entity','speaker'].filter(k=>!O[k]);
  $('warn').textContent=miss.length?'Open Settings and set: '+miss.join(', '):'';
  sources().forEach(([k,l])=>chk($('srcs'),'s',k,l,k==='household'));
- [['Hype','hype_style'],['Roast','roast_style'],['Sweetie Pie','sweet_style']].forEach(([k,o])=>{
-  const l=document.createElement('label');l.textContent=k+' style';const t=document.createElement('textarea');t.dataset.p=k;t.value=O[o]||'';$('persbox').append(l,t)});
  if(O.speaker&&O.tts_entity)chk($('outs'),'o','tts','Speak on main speaker (TTS)',1);
  (O.alexa_targets||[]).forEach(a=>chk($('outs'),'o','a:'+a,'Alexa: '+a,1));
  (O.notify_targets||[]).forEach(a=>chk($('outs'),'o','n:'+a,'Notify: '+a,0));
+ [['Hype','hype_style'],['Roast','roast_style'],['Sweetie Pie','sweet_style']].forEach(([k,o])=>{const t=el('textarea');t.dataset.p=k;t.value=O[o]||'';$('persbox').append(el('label','',k+' style'),t)});
  const hasSel=!!O.personality_select;
  $('selwrap').style.display=hasSel?'':'none';$('usePers').checked=hasSel;
  $('len').value=O.default_length||1000;$('vol').value=O.default_volume||70;
- Object.entries(PRE).forEach(([k,[n,s]])=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{$('name').value=n;q('[data-s]').forEach(c=>c.checked=s.includes(c.dataset.s));q('[data-o^="n:"]').forEach(c=>c.checked=k==='Welcome Home');gen()};$('presets').appendChild(b)});
- if(first){first=false;try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}renderSaved()}
- gen();
+ Object.entries(PRE).forEach(([k,p])=>{const b=el('button','',k);b.onclick=()=>{
+   const have=sources().map(x=>x[0]),miss=p.src.filter(x=>!have.includes(x));
+   $('pnote').textContent=miss.length?'Not set up yet (add in Settings): '+miss.join(', '):'';
+   applyState({name:p.name,src:p.src,task:p.task,outs:q('[data-o]').map(c=>c.dataset.o).filter(o=>!o.startsWith('n:')||p.notify)})};$('presets').appendChild(b)});
+ if(first){first=false;try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}$('task').value=PRE['Weather & News'].task;renderSaved();gen()}
+ else applyState(prev);
 }
-
-const ROLES=[['Core',[['ai_task_entity','AI Task (writes the text)',['ai_task']],['tts_entity','Text-to-speech engine',['tts']],['speaker','Main speaker',['media_player']],['alexa_targets','Extra Alexa speakers',['media_player'],1],['notify_targets','Phone notifications',['notify'],1],['music_players','Music players to pause',['media_player'],1],['talking_flag','Talking flag (optional)',['input_boolean']],['personality_select','Personality dropdown (optional)',['input_select']]]],
-['Info sources',[['weather_entity','Weather',['weather']],['inside_temp_entity','Inside temperature',['sensor']],['news_entity','News feed sensor',['sensor']],['calendar_entities','Calendars',['calendar'],1],['todo_entity','To-do list',['todo']],['trash_entity','Trash day entity',['schedule','binary_sensor','input_boolean']],['locations_entity','Locations sensor (optional, blank = people)',['sensor']],['combined_info_entity','Extra context sensor (optional)',['sensor']]]]];
-function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(t==='input')e.type='text';if(x!=null)e.textContent=x;return e}
-function picker(doms,multi,get,set){
- const w=el('div'),chips=el('div','chips'),inp=el('input'),list=el('div','plist');
- inp.placeholder='Tap to search'+(doms?' ('+doms.map(d=>d+'.*').join(', ')+')':'');
- const draw=()=>{chips.innerHTML='';get().forEach(v=>{const b=el('button','',v+'  \u2715');b.onclick=()=>{set(get().filter(x=>x!==v));draw()};chips.appendChild(b)});inp.style.display=(!multi&&get().length)?'none':''};
- const show=()=>{const t=inp.value.toLowerCase();list.innerHTML='';
-  ENT.filter(e=>!doms||doms.includes(e.id.split('.')[0])).filter(e=>!t||e.id.includes(t)||e.name.toLowerCase().includes(t)).slice(0,30).forEach(e=>{
-   const d=el('div','pi',e.name+' \u00b7 '+e.id);d.onpointerdown=ev=>{ev.preventDefault();set(multi?[...new Set([...get(),e.id])]:[e.id]);inp.value='';list.innerHTML='';draw()};list.appendChild(d)})};
- inp.oninput=show;inp.onfocus=show;inp.onblur=()=>setTimeout(()=>list.innerHTML='',150);
- draw();w.append(chips,inp,list);return w;
-}
-function drawSettings(){
- const v=$('v-set');v.innerHTML='';
- const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
- if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant, so the search lists are empty. Check the add-on log.'));
- ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
- const sh=sec('AI source helper');
- sh.append(el('p','mu','Pick an entity and say what you want from it. Your AI Task looks at it and sets up a custom source for you. Using: '+(S.helper_ai_task_entity||S.ai_task_entity||'nothing set yet')+(S.helper_ai_task_entity?' (from the add-on Configuration tab)':' (your main AI Task; you can set a different one in the add-on Configuration tab as helper_ai_task_entity)')),el('label','','Entity to test'),
-  picker(null,false,()=>HEL.entity?[HEL.entity]:[],a=>{HEL.entity=a[0]||''}),el('label','','What do you want from it?'));
- const gt=el('textarea');gt.placeholder='e.g. Days left until the concert and where it is';gt.value=HEL.goal;gt.oninput=()=>{HEL.goal=gt.value};
- const tb=el('button','p','Test it'),res=el('div');
- tb.onclick=async()=>{
-  if(!HEL.entity||!HEL.goal){res.textContent='Pick an entity and say what you want.';return}
-  res.textContent='Asking your AI Task...';tb.disabled=true;
-  try{const r=await (await fetch('./api/helper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity:HEL.entity,goal:HEL.goal,ai:S.helper_ai_task_entity||S.ai_task_entity})})).json();
-   if(!r.ok){res.textContent=r.error;return}
-   res.innerHTML='';
-   res.append(el('p','','Suggested: '+r.label+(r.attribute?' (attribute: '+r.attribute+')':' (whole entity)')),el('p','mu',r.note),el('p','mu','Preview: '+r.preview));
-   const ab=el('button','p','Add as custom source');
-   ab.onclick=()=>{(S.custom_sources=S.custom_sources||[]).push({label:r.label,entity:HEL.entity,attribute:r.attribute});drawSettings();$('smsg').textContent='Added to custom sources. Tap Save settings to keep it.'};
-   res.appendChild(ab);
-  }catch(e){res.textContent='Failed: '+e}finally{tb.disabled=false}};
- sh.append(gt,tb,res);
- const s2=sec('Context & text');
- [['household_context','Who lives here, pets, friends (free text)','t'],['combined_info_attribute','Extra context sensor: attribute to read (blank = its state)','i'],['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
-  s2.appendChild(el('label','',l));const f=el(t==='t'?'textarea':'input');if(t==='n')f.type='number';f.value=S[k]??'';f.oninput=()=>{S[k]=t==='n'?+f.value:f.value};s2.appendChild(f)});
- const s3=sec('Custom sources (concerts, sports, PS5, anything)'),rows=el('div');s3.appendChild(rows);
- const dr=()=>{rows.innerHTML='';(S.custom_sources=S.custom_sources||[]).forEach((r,i)=>{const bx=el('div');bx.style.cssText='border:1px solid var(--bd);border-radius:10px;padding:8px;margin-bottom:8px';
-  const lb=el('input');lb.placeholder='Label, e.g. Concert 1';lb.value=r.label||'';lb.oninput=()=>r.label=lb.value;
-  const at=el('input');at.placeholder='Attribute (optional)';at.value=r.attribute||'';at.oninput=()=>r.attribute=at.value;
-  const rm=el('button','','Remove');rm.onclick=()=>{S.custom_sources.splice(i,1);dr()};
-  bx.append(lb,picker(null,false,()=>r.entity?[r.entity]:[],a=>{r.entity=a[0]||''}),at,rm);rows.appendChild(bx)})};
- dr();const ad=el('button','','+ Add source');ad.onclick=()=>{S.custom_sources.push({label:'',entity:'',attribute:''});dr()};s3.appendChild(ad);
- const s4=sec('Save'),io=el('textarea');io.placeholder='Export shows your settings here. Paste settings here and tap Import to load them.';io.style.minHeight='90px';
- const r=el('div','row'),bs=el('button','p','Save settings'),ba=el('button','','Auto-fill empty'),be=el('button','','Export'),bi=el('button','','Import');
- bs.onclick=async()=>{S.custom_sources=(S.custom_sources||[]).filter(c=>c.label&&c.entity);const x=await (await fetch('./api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)})).json();S=x;build();drawSettings();$('smsg').textContent='Saved.'};
- ba.onclick=()=>{let n=0;ROLES.forEach(([,it])=>it.forEach(([k,,d,m])=>{if(m||S[k])return;const c=ENT.filter(e=>d.includes(e.id.split('.')[0]));if(c.length===1){S[k]=c[0].id;n++}}));drawSettings();$('smsg').textContent='Filled '+n+' (only where one match existed). Save to keep.'};
- be.onclick=()=>{io.value=JSON.stringify(S,null,1)};
- bi.onclick=()=>{try{S=Object.assign({},S,JSON.parse(io.value));drawSettings();$('smsg').textContent='Imported. Review, then Save.'}catch(e){$('smsg').textContent='That is not valid JSON.'}};
- r.append(bs,ba,be,bi);s4.append(r,io,Object.assign(el('p','mu',''),{id:'smsg'}));
-}
-$('tc').onclick=()=>{$('v-create').style.display='';$('v-set').style.display='none';$('tc').className='p';$('ts').className=''};
-$('ts').onclick=()=>{$('v-create').style.display='none';$('v-set').style.display='';$('ts').className='p';$('tc').className=''};
-
-function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,extra:$('extra').value.trim(),outs:q('[data-o]:checked').map(c=>c.dataset.o),json:q('[data-o^="n:"]:checked').length>0,vol:+$('vol').value/100,pause:$('pause').checked}}
 
 function instr(s,rules){
  const has=x=>s.src.includes(x),L=[],W=O.weather_entity;
  L.push("Current time: {{ current_time }}. Use this to understand what 'tonight', 'this morning', 'Friday' etc. mean.");
  if(has('household')&&(O.household_context||O.combined_info_entity))L.push('Info about us and our friends: {{ combined_info }}');
  if(has('locations'))L.push(O.locations_entity?"Everyone's current location: {% for name, loc in locations.items() if name != 'friendly_name' %}{{ name }} is at {{ loc }}. {% endfor %}\nA location of Home means they are at our house.":"Where everyone is: {% for p in states.person %}{{ p.name }} is {{ p.state }}. {% endfor %}");
- if(has('weather'))L.push(`WEATHER: Right now it is {{ states('${W}') }}, {{ state_attr('${W}', 'temperature') | float(0) | round(0) | int }} degrees, humidity {{ state_attr('${W}', 'humidity') | float(0) | round(0) | int }} percent, wind {{ state_attr('${W}', 'wind_speed') | float(0) | round(0) | int }}.\nTomorrow: {% set day = forecast_data['${W}']['forecast'][1] %}{{ day.condition | default('unknown') }}, high {{ day.temperature | default(0) | float(0) | round(0) | int }}, low {{ day.templow | default(0) | float(0) | round(0) | int }}, rain {{ day.precipitation | default(0) | float(0) | round(2) }}.`+(O.inside_temp_entity?`\nInside temp: {{ states('${O.inside_temp_entity}') | float(0) | round(0) | int }} degrees.`:''));
+ if(has('weather'))L.push(`WEATHER: Right now it is {{ states('${W}') }}, {{ state_attr('${W}', 'temperature') | float(0) | round(0) | int }} degrees, humidity {{ state_attr('${W}', 'humidity') | float(0) | round(0) | int }} percent, wind {{ state_attr('${W}', 'wind_speed') | float(0) | round(0) | int }}.\nDaily forecast:\n{% for d in forecast_data['${W}']['forecast'][:7] %}- {{ d.datetime[:10] }}: {{ d.condition | default('unknown') }}, high {{ d.temperature | default(0) | float(0) | round(0) | int }}, low {{ d.templow | default(0) | float(0) | round(0) | int }}, rain {{ d.precipitation | default(0) | float(0) | round(2) }}\n{% endfor %}`+(O.inside_temp_entity?`Inside temp: {{ states('${O.inside_temp_entity}') | float(0) | round(0) | int }} degrees.`:''));
  if(has('news'))L.push(`NEWS (cover local first, then US, then world):\n{% for a in (state_attr('${O.news_entity}', 'entries') or [])[:25] %}- {{ a.title }}: {{ a.summary }}\n{% endfor %}`);
- if(has('calendar'))L.push("CALENDAR (next 7 days; if empty say nothing is planned):\n{% for cal, d in calendars.items() %}{% for e in d.events %}- {{ e.summary }}: {{ e.start }}\n{% endfor %}{% endfor %}");
+ if(has('calendar'))L.push("CALENDAR (next 7 days, grouped by calendar; no events means nothing is on):\n{% for cal, d in calendars.items() %}[{{ cal }}]\n{% for e in d.events %}- {{ e.summary }}: {{ e.start }}\n{% else %}(no events)\n{% endfor %}{% endfor %}");
  if(has('todo'))L.push(`TO-DO LIST:\n{% for item in items.get('${O.todo_entity}', {}).get('items', []) %}- {{ item.summary }}{% if item.get('due') %} (due {{ item.get('due') }}){% endif %}\n{% else %}Nothing on the list.\n{% endfor %}`);
  if(has('trash'))L.push(`TRASH: {{ 'Trash pickup is tomorrow, remind us to take it to the curb.' if is_state('${O.trash_entity}', 'on') else 'No trash pickup tomorrow, do not mention trash.' }}`);
  (O.custom_sources||[]).forEach((c,i)=>{if(has('c'+i))L.push(c.label+': '+(c.attribute?`{{ state_attr('${c.entity}', '${c.attribute}') }}`:`{{ states('${c.entity}') }} {{ states.${c.entity}.attributes | default('', true) }}`))});
- let t="STYLE: "+rules+"\nNo markdown, bullet points, quotation marks or emojis. Keep it under "+s.len+" characters. One continuous flowing monologue that sounds natural read aloud by text-to-speech.";
- if(s.extra)t+="\n"+s.extra;
- L.push(t);
+ L.push("YOUR TASK: "+(s.task||"Give a short, useful rundown of the information above."));
+ L.push("STYLE: "+rules+"\nNo markdown, bullet points, quotation marks or emojis. Keep it under "+s.len+" characters. One continuous flowing monologue that sounds natural read aloud by text-to-speech.");
  if(s.json)L.push('Output ONLY a JSON object, no code fences, no other text, exactly like this:\n{"speech": "the full monologue", "notification": "one short sentence banner under 100 characters"}');
  return L.join('\n\n');
 }
 
 function gen(){
- const s=st(),has=x=>s.src.includes(x),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag,sp_on=s.outs.includes('tts')&&!!O.tts_entity&&!!O.speaker,al=(O.alexa_targets||[]).filter(a=>s.outs.includes('a:'+a)),nt=(O.notify_targets||[]).filter(a=>s.outs.includes('n:'+a)),speak=sp_on||al.length>0;
+ const s=st(),has=x=>s.src.includes(x),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag,
+  sp_on=s.outs.includes('tts')&&!!O.tts_entity&&!!O.speaker,al=(O.alexa_targets||[]).filter(a=>s.outs.includes('a:'+a)),nt=(O.notify_targets||[]).filter(a=>s.outs.includes('n:'+a)),speak=sp_on||al.length>0;
  let y='alias: '+n+"\ndescription: Made with Announcement Maker\nsequence:\n  - variables:\n      current_time: '{{ now().strftime(''%A, %B %-d %Y %-I:%M %p %Z'') }}'\n";
  if(has('household')&&(O.household_context||O.combined_info_entity)){
   const e=O.combined_info_entity,a=O.combined_info_attribute;
@@ -189,7 +165,10 @@ function gen(){
  y+=`  - variables:\n      speech: '${sp}'\n  - alias: Deliver\n    parallel:\n`;
  if(sp_on)y+=`      - action: tts.speak\n        target:\n          entity_id: ${O.tts_entity}\n        data:\n          message: '{{ speech }}'\n          media_player_entity_id: ${A}\n`;
  if(al.length)y+="      - action: notify.alexa_media\n        data:\n          target:\n"+al.map(a=>"            - "+a).join('\n')+"\n          message: '{{ speech }}'\n          data:\n            type: tts\n";
- if(nt.length)y+="      - action: notify.send_message\n        target:\n          entity_id:\n"+nt.map(a=>"            - "+a).join('\n')+"\n        data:\n          message: '{{ (announcement.data | from_json).notification }}'\n";
+ const isSvc=id=>{const e=ENT.find(x=>x.id===id);return e?!!e.svc:/^notify\.mobile_app_/.test(id)};
+ const ne=nt.filter(i=>!isSvc(i)),ns=nt.filter(isSvc),msg="          title: "+n+"\n          message: '{{ (announcement.data | from_json).notification }}'\n";
+ if(ne.length)y+="      - action: notify.send_message\n        target:\n          entity_id:\n"+ne.map(a=>"            - "+a).join('\n')+"\n        data:\n"+msg;
+ ns.forEach(a=>{y+="      - action: "+a+"\n        data:\n"+msg});
  if(!sp_on&&!al.length&&!nt.length){y+="      - delay:\n          seconds: 1\n";$('msg').textContent='Pick at least one output under Where it goes.'}
  if(sp_on)y+=`  - delay:\n      seconds: 15\n  - wait_for_trigger:\n      - trigger: state\n        entity_id: ${A}\n        to:\n          - paused\n          - idle\n    timeout:\n      seconds: 120\n    continue_on_timeout: true\n  - delay:\n      seconds: 5\n`;
  else if(al.length)y+="  - delay:\n      seconds: 40\n";
@@ -198,26 +177,103 @@ function gen(){
  $('out').textContent=y;
  $('onewrap').style.display=s.usePers?'none':'block';$('volv').textContent=Math.round(s.vol*100);
 }
-document.addEventListener('input',gen);document.addEventListener('change',gen);
+document.addEventListener('input',e=>{if(e.target.closest('#v-create'))gen()});document.addEventListener('change',e=>{if(e.target.closest('#v-create'))gen()});
 
-async function post(path){
- const r=await fetch('./api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:slug($('name').value),yaml:$('out').textContent})});
- return r.json();
-}
+async function api(path,body){const r=await fetch('./api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json()}
+const post=path=>api(path,{id:slug($('name').value),yaml:$('out').textContent});
 $('push').onclick=async()=>{$('msg').textContent='Pushing...';try{const r=await post('push');$('msg').textContent=r.ok?'Done. Created '+r.entity+' in Home Assistant.':(r.detail||r.error)}catch(e){$('msg').textContent='Failed: '+e}};
 $('run').onclick=async()=>{$('msg').textContent='Starting...';try{const r=await post('run');$('msg').textContent=r.ok?'Started. Push first if you changed anything.':r.detail}catch(e){$('msg').textContent='Failed: '+e}};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('out').textContent);$('msg').textContent='Copied.'}catch(e){const r=document.createRange();r.selectNodeContents($('out'));getSelection().removeAllRanges();getSelection().addRange(r);$('msg').textContent='Selected. Press Copy on your device.'}};
-
-let mem={};
 const persist=()=>{try{localStorage.setItem('ann',JSON.stringify(mem))}catch(e){}};
 function renderSaved(){
  const box=$('saved');box.innerHTML='';const k=Object.keys(mem);
- if(!k.length){box.innerHTML='<span class="mu">Nothing saved yet.</span>';return}
- k.forEach(n=>{const d=document.createElement('div');d.className='saved';d.innerHTML='<span></span><button>Load</button><button>x</button>';d.firstChild.textContent=n;
-  d.children[1].onclick=()=>{const s=mem[n];$('name').value=s.name;q('[data-s]').forEach(c=>c.checked=s.src.includes(c.dataset.s));q('[data-p]').forEach(t=>t.value=s.pers[t.dataset.p]||t.value);$('usePers').checked=s.usePers;$('one').value=s.one;$('len').value=s.len;$('extra').value=s.extra;q('[data-o]').forEach(c=>c.checked=(s.outs||[]).includes(c.dataset.o));$('vol').value=Math.round(s.vol*100);$('pause').checked=s.pause;gen()};
-  d.children[2].onclick=()=>{delete mem[n];persist();renderSaved()};box.appendChild(d)});
+ if(!k.length){box.append(el('span','mu','Nothing saved yet.'));return}
+ k.forEach(n=>{const d=el('div','saved'),lb=el('span','',n),ld=el('button','','Load'),rm=el('button','','Delete');
+  ld.onclick=()=>applyState(mem[n]);rm.onclick=()=>{delete mem[n];persist();renderSaved()};d.append(lb,ld,rm);box.appendChild(d)});
 }
 $('save').onclick=()=>{const s=st();mem[s.name||'Untitled']=s;persist();renderSaved();$('msg').textContent='Saved.'};
 
-Promise.all([fetch('./api/options').then(r=>r.json()),fetch('./api/entities').then(r=>r.json()).catch(()=>[])]).then(([o,e])=>{S=o;ENT=e;build();drawSettings()}).catch(e=>{$('warn').textContent='Could not load add-on options: '+e});
+/* ---------- entity picker ---------- */
+function picker(doms,multi,get,set){
+ const w=el('div'),chips=el('div','chips'),inp=el('input'),list=el('div','plist');
+ inp.placeholder='Tap to search or type an entity id'+(doms?' ('+doms.map(d=>d+'.*').join(', ')+')':'');
+ const draw=()=>{chips.innerHTML='';get().forEach(v=>{const b=el('button','',v+'  \u2715');b.onclick=()=>{set(get().filter(x=>x!==v));draw()};chips.appendChild(b)});inp.style.display=(!multi&&get().length)?'none':''};
+ const pick=id=>{set(multi?[...new Set([...get(),id])]:[id]);inp.value='';list.innerHTML='';draw()};
+ const show=()=>{const t=inp.value.trim().toLowerCase();list.innerHTML='';
+  const add=(txt,id)=>{const d=el('div','pi',txt);d.onpointerdown=ev=>{ev.preventDefault();pick(id)};list.appendChild(d)};
+  if(/^[a-z_]+\.[a-z0-9_]+$/.test(t)&&!ENT.some(e=>e.id===t)&&(!doms||doms.includes(t.split('.')[0])))add('Use typed value: '+t,t);
+  ENT.filter(e=>!doms||doms.includes(e.id.split('.')[0])).filter(e=>!t||e.id.includes(t)||e.name.toLowerCase().includes(t)).slice(0,30).forEach(e=>add(e.name+' \u00b7 '+e.id,e.id))};
+ inp.oninput=show;inp.onfocus=show;inp.onblur=()=>setTimeout(()=>list.innerHTML='',200);
+ draw();w.append(chips,inp,list);return w;
+}
+
+/* ---------- helper tab ---------- */
+function drawHelper(){
+ const v=$('v-help');v.innerHTML='';
+ const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
+ const info='Using AI Task: '+(aiName()||'nothing set yet (Settings, or helper_ai_task_entity in the add-on Configuration tab)');
+ const a=sec('Write the instructions for me');
+ a.append(el('p','mu','Say what you want in your own words. The AI writes clear instructions and picks the data to include. '+info),el('label','','What should the announcement do?'));
+ const idea=el('textarea');idea.value=HEL.idea;idea.placeholder='e.g. Look at the weather for the week and tell me about it, but only if my work calendar has something on.';idea.oninput=()=>{HEL.idea=idea.value};
+ const wb=el('button','p','Help me write it'),wr=el('div');
+ wb.onclick=async()=>{
+  if(!HEL.idea.trim()){wr.textContent='Type what you want first.';return}
+  wr.textContent='Asking your AI Task...';wb.disabled=true;
+  try{const r=await api('helper',{mode:'instructions',idea:HEL.idea,ai:aiName(),sources:sources().map(([id,label])=>({id,label})),calendars:O.calendar_entities||[]});
+   if(!r.ok){wr.textContent=r.error;return}
+   wr.innerHTML='';const nm=el('input');nm.value=r.name||'';const tk=el('textarea');tk.value=r.task;
+   const labels=sources().filter(([id])=>r.sources.includes(id)).map(x=>x[1]);
+   wr.append(el('label','','Script name'),nm,el('label','','Instructions (edit if you like)'),tk,el('p','mu','Will tick: '+(labels.join(', ')||'nothing extra')));
+   const ub=el('button','p','Use in Create');ub.onclick=()=>{applyState(Object.assign(st(),{name:nm.value||st().name,src:r.sources.length?r.sources:st().src,task:tk.value}));showTab('create')};wr.appendChild(ub);
+  }catch(e){wr.textContent='Failed: '+e}finally{wb.disabled=false}};
+ a.append(idea,wb,wr);
+ const b=sec('Test an entity');
+ b.append(el('p','mu','Pick an entity and say what you want from it. The AI finds the right attribute and adds it as a custom source.'),el('label','','Entity'),picker(null,false,()=>HEL.entity?[HEL.entity]:[],x=>{HEL.entity=x[0]||''}),el('label','','What do you want from it?'));
+ const gt=el('textarea');gt.placeholder='e.g. Days left until the concert and where it is';gt.value=HEL.goal;gt.oninput=()=>{HEL.goal=gt.value};
+ const tb=el('button','p','Test it'),res=el('div');
+ tb.onclick=async()=>{
+  if(!HEL.entity||!HEL.goal){res.textContent='Pick an entity and say what you want.';return}
+  res.textContent='Asking your AI Task...';tb.disabled=true;
+  try{const r=await api('helper',{entity:HEL.entity,goal:HEL.goal,ai:aiName()});
+   if(!r.ok){res.textContent=r.error;return}
+   res.innerHTML='';res.append(el('p','','Suggested: '+r.label+(r.attribute?' (attribute: '+r.attribute+')':' (whole entity)')),el('p','mu',r.note),el('p','mu','Preview: '+r.preview));
+   const ab=el('button','p','Add as custom source');
+   ab.onclick=async()=>{(S.custom_sources=S.custom_sources||[]).push({label:r.label,entity:HEL.entity,attribute:r.attribute});await saveSettings();ab.textContent='Added and saved';ab.disabled=true};
+   res.appendChild(ab);
+  }catch(e){res.textContent='Failed: '+e}finally{tb.disabled=false}};
+ b.append(gt,tb,res);
+}
+
+/* ---------- settings tab ---------- */
+const ROLES=[['Core',[['ai_task_entity','AI Task (writes the text)',['ai_task']],['tts_entity','Text-to-speech engine',['tts']],['speaker','Main speaker',['media_player']],['alexa_targets','Extra Alexa speakers',['media_player'],1],['notify_targets','Phone notifications (type or pick; phones show as "service")',['notify'],1],['music_players','Music players to pause',['media_player'],1],['talking_flag','Talking flag (optional)',['input_boolean']],['personality_select','Personality dropdown (optional)',['input_select']]]],
+['Info sources',[['weather_entity','Weather',['weather']],['inside_temp_entity','Inside temperature',['sensor']],['news_entity','News feed sensor',['sensor']],['calendar_entities','Calendars',['calendar'],1],['todo_entity','To-do list',['todo']],['trash_entity','Trash day entity',['schedule','binary_sensor','input_boolean']],['locations_entity','Locations sensor (optional, blank = people)',['sensor']],['combined_info_entity','Extra context sensor (optional)',['sensor']]]]];
+async function saveSettings(){
+ S.custom_sources=(S.custom_sources||[]).filter(c=>c.label&&c.entity);
+ S=await api('settings',S);build();drawHelper();drawSettings();
+}
+function drawSettings(){
+ const v=$('v-set');v.innerHTML='';
+ const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
+ if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant. You can still type entity ids into any field. Check the add-on Log tab.'));
+ ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
+ const s2=sec('Context & text');
+ [['household_context','Who lives here, pets, friends (free text)','t'],['combined_info_attribute','Extra context sensor: attribute to read (blank = its state)','i'],['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
+  s2.appendChild(el('label','',l));const f=el(t==='t'?'textarea':'input');if(t==='n')f.type='number';f.value=S[k]??'';f.oninput=()=>{S[k]=t==='n'?+f.value:f.value};s2.appendChild(f)});
+ const s3=sec('Custom sources (concerts, sports, PS5, anything)'),rows=el('div');s3.appendChild(rows);
+ const dr=()=>{rows.innerHTML='';(S.custom_sources=S.custom_sources||[]).forEach((r,i)=>{const bx=el('div','box');
+  const lb=el('input');lb.placeholder='Label, e.g. Concert 1';lb.value=r.label||'';lb.oninput=()=>{r.label=lb.value};
+  const at=el('input');at.placeholder='Attribute (optional)';at.value=r.attribute||'';at.oninput=()=>{r.attribute=at.value};
+  const rm=el('button','','Remove');rm.onclick=()=>{S.custom_sources.splice(i,1);dr()};
+  bx.append(lb,picker(null,false,()=>r.entity?[r.entity]:[],a=>{r.entity=a[0]||''}),at,rm);rows.appendChild(bx)})};
+ dr();const ad=el('button','','+ Add source');ad.onclick=()=>{S.custom_sources.push({label:'',entity:'',attribute:''});dr()};s3.appendChild(ad);
+ const s4=sec('Save'),io=el('textarea');io.placeholder='Export shows your settings here. Paste settings here and tap Import.';io.style.minHeight='90px';
+ const r=el('div','row'),bs=el('button','p','Save settings'),ba=el('button','','Auto-fill empty'),be=el('button','','Export'),bi=el('button','','Import');
+ bs.onclick=async()=>{await saveSettings();$('smsg').textContent='Saved.'};
+ ba.onclick=()=>{let n=0;ROLES.forEach(([,it])=>it.forEach(([k,,d,m])=>{if(m||S[k])return;const c=ENT.filter(e=>d.includes(e.id.split('.')[0]));if(c.length===1){S[k]=c[0].id;n++}}));drawSettings();$('smsg').textContent='Filled '+n+' (only where one match existed). Save to keep.'};
+ be.onclick=()=>{io.value=JSON.stringify(S,null,1)};
+ bi.onclick=()=>{try{S=Object.assign({},S,JSON.parse(io.value));drawSettings();$('smsg').textContent='Imported. Review, then Save.'}catch(e){$('smsg').textContent='That is not valid JSON.'}};
+ r.append(bs,ba,be,bi);s4.append(r,io,Object.assign(el('p','mu',''),{id:'smsg'}));
+}
+
+Promise.all([fetch('./api/options').then(r=>r.json()),fetch('./api/entities').then(r=>r.json()).catch(()=>[])]).then(([o,e])=>{S=o;ENT=e;build();drawHelper();drawSettings()}).catch(e=>{$('warn').textContent='Could not load add-on data: '+e});
 </script></body></html>
