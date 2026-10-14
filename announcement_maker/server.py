@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tiny backend: serves the UI, exposes add-on options, pushes scripts to HA."""
-import json, os, re, urllib.error, urllib.request
+import json, os, re, threading, time, urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import yaml
@@ -19,7 +19,7 @@ DEFAULTS = {
     'music_players': [], 'talking_flag': '', 'personality_select': '', 'household_context': '',
     'combined_info_entity': '', 'combined_info_attribute': '', 'locations_entity': '',
     'weather_entity': '', 'inside_temp_entity': '', 'news_entity': '', 'calendar_entities': [],
-    'todo_entity': '', 'trash_entity': '', 'custom_sources': [], 'default_volume': 70, 'default_length': 1000,
+    'todo_entity': '', 'trash_entity': '', 'custom_sources': [], 'sources': None, 'default_volume': 70, 'default_length': 1000,
     'hype_style': 'Be funny and hype us up. Boost our confidence. PG-13 language, no insults.',
     'roast_style': 'Roast us super aggressively. Rated-R, heavy profanity, funny not hurtful.',
     'sweet_style': 'Be super sweet and warm to everyone. Playful teasing only, never mean.'}
@@ -39,6 +39,53 @@ def load_settings():
 INGRESS_IP = '172.30.32.2'   # only the HA ingress gateway may talk to us
 ID_RE = re.compile(r'^[a-z0-9_]{1,60}$')
 ENT_RE = re.compile(r'^[a-z_]+\.[a-z0-9_]+$')
+
+
+TEST = {'status': 'idle'}
+TEST_ID = 'announcement_maker_test'
+
+
+def run_test(cfg, mode):
+    """Run the script once under a temporary id, return what the AI saw/said, then delete it."""
+    global TEST
+    try:
+        seq = (cfg or {}).get('sequence') or []
+        keys, last = [], -1
+        for i, st in enumerate(seq):
+            if isinstance(st, dict) and isinstance(st.get('variables'), dict):
+                ks = [k for k in st['variables'] if k.startswith('src_')]
+                if ks:
+                    keys, last = ks, i
+        if not keys:
+            TEST = {'status': 'error', 'error': 'Tick at least one data source first.'}
+            return
+        if mode == 'data':
+            seq = seq[:last + 1]
+        res = {'sources': {k: '{{ %s }}' % k for k in keys}}
+        if mode != 'data':
+            res.update({'speech': '{{ speech }}', 'raw': '{{ announcement.data }}'})
+        cfg['sequence'] = seq + [{'variables': {'test_result': res}},
+                                 {'stop': 'Test finished', 'response_variable': 'test_result'}]
+        cfg['alias'] = '[TEST] ' + str(cfg.get('alias', 'announcement'))
+        code, text = ha('POST', '/api/config/script/config/' + TEST_ID, cfg)
+        if code != 200:
+            TEST = {'status': 'error', 'error': 'HA refused the test script (%s): %s' % (code, text[:400])}
+            return
+        ha('POST', '/api/services/script/reload', {})
+        time.sleep(1.5)
+        code, text = ha('POST', '/api/services/script/%s?return_response' % TEST_ID, {}, timeout=420)
+        if code != 200:
+            TEST = {'status': 'error', 'error': text[:1500]}
+            return
+        r = json.loads(text).get('service_response') or {}
+        if 'sources' not in r and len(r) == 1 and isinstance(list(r.values())[0], dict):
+            r = list(r.values())[0]
+        TEST = dict(r, status='done')
+    except Exception as e:
+        TEST = {'status': 'error', 'error': str(e)}
+    finally:
+        ha('DELETE', '/api/config/script/config/' + TEST_ID)
+        ha('POST', '/api/services/script/reload', {})
 
 
 def helper_text(body):
@@ -134,6 +181,8 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split('?')[0]
         if path in ('/', '/index.html'):
             return self.send(200, (WWW / 'index.html').read_bytes(), 'text/html; charset=utf-8')
+        if path == '/api/test':
+            return self.send(200, TEST)
         if path == '/api/options':
             return self.send(200, load_settings())
         if path == '/api/entities':
@@ -165,6 +214,18 @@ class Handler(BaseHTTPRequestHandler):
             clean = {k: v for k, v in body.items() if k in DEFAULTS and k != 'helper_ai_task_entity'}
             SETTINGS_FILE.write_text(json.dumps(clean))
             return self.send(200, load_settings())
+        if self.path.split('?')[0] == '/api/test':
+            global TEST
+            if TEST.get('status') == 'running':
+                return self.send(200, {'ok': False, 'error': 'A test is already running.'})
+            try:
+                cfg = yaml.safe_load(body.get('yaml', ''))
+            except yaml.YAMLError as e:
+                return self.send(400, {'error': 'YAML problem: %s' % e})
+            mode = body.get('mode') if body.get('mode') in ('data', 'text', 'full') else 'text'
+            TEST = {'status': 'running', 'mode': mode}
+            threading.Thread(target=run_test, args=(cfg, mode), daemon=True).start()
+            return self.send(200, {'ok': True})
         if self.path.split('?')[0] == '/api/helper':
             return self.send(200, helper_text(body) if body.get('mode') == 'instructions' else helper(body))
         sid = str(body.get('id', ''))

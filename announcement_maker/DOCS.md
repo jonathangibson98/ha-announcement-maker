@@ -13,9 +13,10 @@ The only add-on options are `ha_token`, `ha_url` and `helper_ai_task_entity`. Le
 
 ## Tabs
 
-- **Create:** pick data, personality, then type **What should it do?** in plain words (for example: "look at the weather for the week, but only if my work calendar has something on"). Calendar events are grouped by calendar, so the AI can tell your work calendar from the others.
-- **Helper:** (1) describe what you want and the AI writes the instructions and ticks the data it needs; (2) test an entity and add it as a custom source.
-- **Settings:** your entities, notify targets, styles, custom sources.
+- **Create:** pick data, personality, then type **What should it do?** in plain words. Every data source is loaded into a variable (`src_<name>`) in the script, and the AI Task reads those variables.
+- **Test before saving:** runs a temporary copy of the script and deletes it afterward, so nothing lands in your Scripts list. *Preview data only* skips the AI and speaking, and shows exactly what each source rendered. *Test (text only)* also runs the AI and shows what it would say. *Test with sound* speaks it too. If a step fails, the error from Home Assistant is shown.
+- **Helper:** (1) describe what you want and the AI writes the instructions and ticks the data it needs; (2) test an entity and add it as an info source.
+- **Settings:** your entities and notify targets, plus **Info sources**. Add, edit or delete any source. Each one has a template you can edit to fix it, and a reset button to go back to the auto-generated one.
 
 Phone notifications: entities (`notify.jon`) and services (`notify.mobile_app_*`, shown as "service") both work, and you can type an id that isn't listed.
 
