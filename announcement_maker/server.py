@@ -5,7 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import yaml
 
-OPTS = json.load(open('/data/options.json')) if os.path.exists('/data/options.json') else {}
+OPTS_FILE = os.environ.get('OPTIONS_FILE', '/data/options.json')
+OPTS = json.load(open(OPTS_FILE)) if os.path.exists(OPTS_FILE) else {}
 TOKEN = (OPTS.get('ha_token') or '').strip()
 if TOKEN:   # user supplied a long-lived token: talk to HA directly
     BASE = (OPTS.get('ha_url') or 'http://homeassistant:8123').rstrip('/')
@@ -14,7 +15,7 @@ else:       # default: use the Supervisor proxy, no token needed
 WWW = Path(__file__).parent / 'www'
 SETTINGS_FILE = Path(os.environ.get('SETTINGS_FILE', '/data/settings.json'))
 DEFAULTS = {
-    'ai_task_entity': '', 'tts_entity': '', 'speaker': '', 'alexa_targets': [], 'notify_targets': [],
+    'ai_task_entity': '', 'helper_ai_task_entity': '', 'tts_entity': '', 'speaker': '', 'alexa_targets': [], 'notify_targets': [],
     'music_players': [], 'talking_flag': '', 'personality_select': '', 'household_context': '',
     'combined_info_entity': '', 'combined_info_attribute': '', 'locations_entity': '',
     'weather_entity': '', 'inside_temp_entity': '', 'news_entity': '', 'calendar_entities': [],
@@ -35,14 +36,51 @@ def load_settings():
 
 INGRESS_IP = '172.30.32.2'   # only the HA ingress gateway may talk to us
 ID_RE = re.compile(r'^[a-z0-9_]{1,60}$')
+ENT_RE = re.compile(r'^[a-z_]+\.[a-z0-9_]+$')
 
 
-def ha(method, path, body=None):
+def helper(body):
+    ent, goal, ai = body.get('entity', ''), str(body.get('goal', ''))[:500], body.get('ai', '')
+    if not (ENT_RE.match(ent) and ENT_RE.match(ai) and ai.startswith('ai_task.') and goal):
+        return {'ok': False, 'error': 'Pick an entity, say what you want, and set an AI Task entity.'}
+    code, text = ha('GET', '/api/states/' + ent)
+    if code != 200:
+        return {'ok': False, 'error': 'Could not read %s (HA said %s).' % (ent, code)}
+    st = json.loads(text)
+    attrs = st.get('attributes', {})
+    prompt = ('You are helping set up a Home Assistant voice announcement. The user wants to pull info from one entity into it.\n'
+              'Entity: %s\nState: %s\nAttributes (JSON, may be cut off): %s\nThe user wants: %s\n'
+              'If one attribute holds what they want, give its exact name. If they need several or it is unclear, '
+              'use an empty string, which includes the state and all attributes.\n'
+              'Reply with ONLY JSON, no code fences: {"label": "short name under 30 chars", '
+              '"attribute": "exact attribute name or empty string", "note": "one sentence on what this will read"}'
+              % (ent, st.get('state'), json.dumps(attrs)[:3000], goal))
+    code, text = ha('POST', '/api/services/ai_task/generate_data?return_response',
+                    {'entity_id': ai, 'task_name': 'Source helper', 'instructions': prompt}, timeout=90)
+    if code != 200:
+        return {'ok': False, 'error': 'AI Task failed (%s): %s' % (code, text[:200])}
+    try:
+        data = json.loads(text)['service_response']['data']
+        j = data if isinstance(data, dict) else json.loads(re.search(r'\{.*\}', data, re.S).group(0))
+    except Exception:
+        return {'ok': False, 'error': 'The AI answer was not usable JSON. Try rewording what you want.'}
+    attr = j.get('attribute') or ''
+    if attr not in attrs or not re.match(r'^[\w .\-]+$', attr):
+        attr = ''
+    tmpl = ("{{ state_attr('%s', '%s') }}" % (ent, attr)) if attr else (
+        "{{ states('%s') }} {{ states.%s.attributes | default('', true) }}" % (ent, ent))
+    code, prev = ha('POST', '/api/template', {'template': tmpl})
+    return {'ok': True, 'label': str(j.get('label') or ent)[:40], 'attribute': attr,
+            'note': str(j.get('note') or '')[:200], 'preview': prev[:300] if code == 200 else '(could not render preview)'}
+
+
+
+def ha(method, path, body=None, timeout=20):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(BASE + path, data=data, method=method, headers={
         'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, r.read().decode()
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()
@@ -91,6 +129,8 @@ class Handler(BaseHTTPRequestHandler):
             clean = {k: v for k, v in body.items() if k in DEFAULTS}
             SETTINGS_FILE.write_text(json.dumps(clean))
             return self.send(200, load_settings())
+        if self.path.split('?')[0] == '/api/helper':
+            return self.send(200, helper(body))
         sid = str(body.get('id', ''))
         if not ID_RE.match(sid):
             return self.send(400, {'error': 'script id must be lowercase letters, numbers, underscores'})
