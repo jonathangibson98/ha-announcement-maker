@@ -15,6 +15,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);
 label{display:block;font-size:14px;margin:10px 0 4px}
 input[type=text],input[type=number],textarea,select{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:11px;margin-bottom:2px}
 textarea{min-height:76px;resize:vertical}
+textarea.code{font:12px/1.4 ui-monospace,monospace;min-height:140px}
 .chips,.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 button{font:inherit;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:999px;padding:9px 14px;cursor:pointer}
 button.p{background:var(--ac);color:var(--ac2);border-color:var(--ac);font-weight:600}
@@ -23,13 +24,15 @@ button:disabled{opacity:.5}
 .chk input{width:20px;height:20px;accent-color:var(--ac);flex:none}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:460px){.grid{grid-template-columns:1fr}}
-pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:0;overflow:auto;font:12px/1.45 ui-monospace,monospace;max-height:360px}
+pre{background:#16181d;color:#d8e1ee;border-radius:10px;padding:12px;margin:6px 0;overflow:auto;font:12px/1.45 ui-monospace,monospace;max-height:340px;white-space:pre-wrap}
+#out{white-space:pre}
 .mu{color:var(--mu);font-size:14px;margin:6px 0}
 .warn{color:var(--ac);font-size:14px;margin:0 0 10px}
 .saved{display:flex;gap:6px;align-items:center;margin:4px 0}.saved span{flex:1}
 .plist{border:1px solid var(--bd);border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;background:var(--card)}.plist:empty{display:none}
 .pi{padding:11px 10px;font-size:14px;border-bottom:1px solid var(--bd)}
 .box{border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
+.box .top{display:flex;gap:8px;align-items:center}.box .top b{flex:1}
 details summary{cursor:pointer;font-size:14px;color:var(--mu);margin-top:8px}
 </style></head><body><main>
 <div class="tabs"><button id="tc" class="p">Create</button><button id="th">Helper</button><button id="ts">Settings</button></div>
@@ -38,7 +41,7 @@ details summary{cursor:pointer;font-size:14px;color:var(--mu);margin-top:8px}
 <div id="v-create">
 <section><h2>Start from</h2><div class="chips" id="presets"></div><p class="warn" id="pnote"></p></section>
 <section><h2>Script name</h2><input type="text" id="name" value="Weather and News"></section>
-<section><h2>Data to include</h2><div class="grid" id="srcs"></div></section>
+<section><h2>Data to include</h2><div class="grid" id="srcs"></div><p class="mu">Add, edit or delete these in Settings. Each one becomes a variable the AI Task reads.</p></section>
 <section><h2>Personality</h2>
 <div id="selwrap"><label class="chk"><input type="checkbox" id="usePers"> Follow my personality dropdown in Home Assistant</label></div>
 <div id="onewrap"><label>Always use</label><select id="one"><option>Hype</option><option>Roast</option><option>Sweetie Pie</option></select></div>
@@ -51,8 +54,12 @@ details summary{cursor:pointer;font-size:14px;color:var(--mu);margin-top:8px}
 <section><h2>Volume</h2>
 <label>Speaker volume: <b id="volv"></b>%</label><input type="range" id="vol" min="10" max="100" style="width:100%">
 <label class="chk"><input type="checkbox" id="pause" checked> Pause music while talking, resume after</label></section>
+<section><h2>Test before saving</h2>
+<p class="mu">Runs a temporary copy of the script and then deletes it. Nothing is added to your Scripts list.</p>
+<div class="row"><button id="t-data">Preview data only</button><button id="t-text">Test (text only)</button><button id="t-full">Test with sound</button></div>
+<div id="tres"></div></section>
 <section><h2>Your script</h2><pre id="out"></pre>
-<div class="row"><button class="p" id="push">Push to Home Assistant</button><button id="run">Run it now</button><button id="copy">Copy YAML</button><button id="save">Save setup</button></div>
+<div class="row"><button class="p" id="push">Push to Home Assistant</button><button id="run">Run saved script</button><button id="copy">Copy YAML</button><button id="save">Save setup</button></div>
 <p class="mu" id="msg"></p></section>
 <section><h2>Saved setups</h2><div id="saved"></div></section>
 </div>
@@ -62,32 +69,67 @@ details summary{cursor:pointer;font-size:14px;color:var(--mu);margin-top:8px}
 </main>
 <script>
 const $=id=>document.getElementById(id),q=s=>[...document.querySelectorAll(s)];
-let O={},S={},ENT=[],first=true,mem={},HEL={entity:'',goal:'',idea:''};
+let O={},S={},ENT=[],first=true,mem={},OPEN='',HEL={entity:'',goal:'',idea:''};
 const ind=(t,n)=>t.split('\n').map(l=>l?' '.repeat(n)+l:l).join('\n');
 const slug=s=>(s||'announcement').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'announcement';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(t==='input')e.type='text';if(x!=null)e.textContent=x;return e}
 function chk(parent,attr,key,label,on){const l=el('label','chk'),i=el('input');i.type='checkbox';i.dataset[attr]=key;i.checked=!!on;l.append(i,' '+label);parent.appendChild(l)}
 const aiName=()=>S.helper_ai_task_entity||S.ai_task_entity||'';
+async function api(path,body){const r=await fetch('./api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json()}
 
-const PRE={
-'Weather & News':{name:'Weather and News',src:['household','locations','weather','news'],task:'Give a quick weather rundown for today and the week ahead, then the top news: local first, then US, then world.'},
-'Welcome Home':{name:'Welcome Home',src:['household','locations','calendar','todo','trash'],notify:1,task:'Welcome home whoever just arrived. Go over the to-do list, remind us about the trash if it is going out, then run through what is on the calendar this week.'},
-"You're Late":{name:"You're Late",src:['household','locations'],task:"Call out every person by name. Roast whoever is not home and work in where they are. Be nicer to whoever is home."},
-'Blank':{name:'My Announcement',src:['household'],task:''}};
-
-function sources(){
- const L=[['household','Household & friends info'],['locations','Where everybody is']];
- if(O.weather_entity)L.push(['weather','Weather (now + 7 days)']);
- if(O.news_entity)L.push(['news','News headlines']);
- if((O.calendar_entities||[]).length)L.push(['calendar','Calendar (7 days)']);
- if(O.todo_entity)L.push(['todo','To-do list']);
- if(O.trash_entity)L.push(['trash','Trash day reminder']);
- (O.custom_sources||[]).forEach((c,i)=>L.push(['c'+i,c.label]));
+/* ---------- info sources ---------- */
+const TYPES={household:'Household info',locations:'Where everyone is',weather:'Weather',news:'News feed',calendar:'Calendar',todo:'To-do list',trash:'Trash reminder',entity:'Entity / attribute',template:'Custom template'};
+const DOMS={weather:['weather'],news:['sensor'],calendar:['calendar'],todo:['todo'],trash:['schedule','binary_sensor','input_boolean'],locations:['sensor'],household:null,entity:null};
+function uid(L,type){let n=1,id=type;while(L.some(x=>x.id===id)){n++;id=type+'_'+n}return id}
+function mk(L,type,o){const base=(type==='entity'&&o&&o.label)?slug(o.label):type;return Object.assign({id:uid(L,base),type,label:TYPES[type],entity:'',entities:[],attribute:'',extra:'',text:'',days:7,template:''},o||{})}
+function migrate(s){
+ const L=[],add=(t,o)=>L.push(mk(L,t,o));
+ add('household',{text:s.household_context||'',entity:s.combined_info_entity||'',attribute:s.combined_info_attribute||''});
+ add('locations',{entity:s.locations_entity||''});
+ if(s.weather_entity)add('weather',{entity:s.weather_entity,extra:s.inside_temp_entity||''});
+ if(s.news_entity)add('news',{label:'News headlines',entity:s.news_entity});
+ if((s.calendar_entities||[]).length)add('calendar',{label:'Calendar (7 days)',entities:s.calendar_entities});
+ if(s.todo_entity)add('todo',{entity:s.todo_entity});
+ if(s.trash_entity)add('trash',{entity:s.trash_entity});
+ (s.custom_sources||[]).forEach(c=>add('entity',{label:c.label,entity:c.entity,attribute:c.attribute||''}));
  return L;
 }
-function showTab(t){[['create','tc'],['help','th'],['set','ts']].forEach(([k,b])=>{$('v-'+k).style.display=k===t?'':'none';$(b).className=k===t?'p':''});window.scrollTo(0,0)}
-$('tc').onclick=()=>showTab('create');$('th').onclick=()=>showTab('help');$('ts').onclick=()=>showTab('set');$('gohelp').onclick=()=>showTab('help');
+const usable=()=>(S.sources||[]).filter(s=>{
+ if(['weather','news','todo','trash','entity'].includes(s.type))return !!s.entity;
+ if(s.type==='calendar')return (s.entities||[]).length>0;
+ if(s.type==='template')return !!(s.template||'').trim();
+ return true});
+function genPre(s){
+ const lb=JSON.stringify;
+ if(s.type==='weather')return `  - alias: ${lb('Get forecast: '+s.label)}\n    action: weather.get_forecasts\n    target:\n      entity_id: ${s.entity}\n    data:\n      type: daily\n    response_variable: fc_${s.id}\n`;
+ if(s.type==='calendar')return `  - alias: ${lb('Get events: '+s.label)}\n    action: calendar.get_events\n    target:\n      entity_id:\n${s.entities.map(c=>'        - '+c).join('\n')}\n    data:\n      start_date_time: "{{ now().strftime('%Y-%m-%d 00:00:00') }}"\n      duration:\n        days: ${s.days||7}\n    response_variable: cal_${s.id}\n`;
+ if(s.type==='todo')return `  - alias: ${lb('Get items: '+s.label)}\n    action: todo.get_items\n    target:\n      entity_id: ${s.entity}\n    data:\n      status: needs_action\n    response_variable: todo_${s.id}\n`;
+ return '';
+}
+function auto(s){
+ const E=s.entity,A=s.attribute;
+ const ent=A?`{{ state_attr('${E}', '${A}') }}`:`{{ states('${E}') }} {{ states.${E}.attributes | default('', true) }}`;
+ if(s.type==='household')return ((s.text||'')+(E?' '+(A?ent:`{{ states('${E}') }}`):'')).trim();
+ if(s.type==='locations')return E?`{% for name, loc in states.${E}.attributes.items() if name != 'friendly_name' %}{{ name }} is at {{ loc }}. {% endfor %}\nA location of Home means they are at our house.`:"{% for p in states.person %}{{ p.name }} is {{ p.state }}. {% endfor %}";
+ if(s.type==='weather')return `Right now it is {{ states('${E}') }}, {{ state_attr('${E}', 'temperature') | float(0) | round(0) | int }} degrees, humidity {{ state_attr('${E}', 'humidity') | float(0) | round(0) | int }} percent, wind {{ state_attr('${E}', 'wind_speed') | float(0) | round(0) | int }}.\nDaily forecast:\n{% for d in fc_${s.id}['${E}']['forecast'][:7] %}- {{ d.datetime[:10] }}: {{ d.condition | default('unknown') }}, high {{ d.temperature | default(0) | float(0) | round(0) | int }}, low {{ d.templow | default(0) | float(0) | round(0) | int }}, rain {{ d.precipitation | default(0) | float(0) | round(2) }}\n{% endfor %}`+(s.extra?`\nInside temp: {{ states('${s.extra}') | float(0) | round(0) | int }} degrees.`:'');
+ if(s.type==='news')return `{% for a in (state_attr('${E}', 'entries') or [])[:25] %}- {{ a.title }}: {{ a.summary }}\n{% endfor %}`;
+ if(s.type==='calendar')return `{% for cal, d in cal_${s.id}.items() %}[{{ cal }}]\n{% for e in d.events %}- {{ e.summary }}: {{ e.start }}\n{% else %}(no events)\n{% endfor %}{% endfor %}`;
+ if(s.type==='todo')return `{% for item in todo_${s.id}.get('${E}', {}).get('items', []) %}- {{ item.summary }}{% if item.get('due') %} (due {{ item.get('due') }}){% endif %}\n{% else %}Nothing on the list.\n{% endfor %}`;
+ if(s.type==='trash')return `{{ 'Trash pickup is tomorrow, remind us to take it to the curb.' if is_state('${E}', 'on') else 'No trash pickup tomorrow, do not mention trash.' }}`;
+ if(s.type==='entity')return ent;
+ return '';
+}
+const body=s=>s.type==='template'?s.template:(s.template||auto(s));
 
+/* ---------- create tab ---------- */
+const PRE={
+'Weather & News':{name:'Weather and News',types:['household','locations','weather','news'],task:'Give a quick weather rundown for today and the week ahead, then the top news: local first, then US, then world.'},
+'Welcome Home':{name:'Welcome Home',types:['household','locations','calendar','todo','trash'],notify:1,task:'Welcome home whoever just arrived. Go over the to-do list, remind us about the trash if it is going out, then run through what is on the calendar this week.'},
+"You're Late":{name:"You're Late",types:['household','locations'],task:"Call out every person by name. Roast whoever is not home and work in where they are. Be nicer to whoever is home."},
+'Blank':{name:'My Announcement',types:['household'],task:''}};
+function showTab(t){[['create','tc'],['help','th'],['set','ts']].forEach(([k,b])=>{$('v-'+k).style.display=k===t?'':'none';$(b).className=k===t?'p':''});try{window.scrollTo(0,0)}catch(e){}}
+$('tc').onclick=()=>showTab('create');$('th').onclick=()=>showTab('help');$('ts').onclick=()=>showTab('set');$('gohelp').onclick=()=>showTab('help');
 function st(){return{name:$('name').value,src:q('[data-s]:checked').map(c=>c.dataset.s),outs:q('[data-o]:checked').map(c=>c.dataset.o),json:q('[data-o^="n:"]:checked').length>0,pers:Object.fromEntries(q('[data-p]').map(t=>[t.dataset.p,t.value])),usePers:$('usePers').checked&&!!O.personality_select,one:$('one').value,len:+$('len').value||1000,task:$('task').value.trim(),vol:+$('vol').value/100,pause:$('pause').checked}}
 function applyState(s){
  if(s.name!=null)$('name').value=s.name;
@@ -102,13 +144,13 @@ function applyState(s){
  if(s.pause!=null)$('pause').checked=s.pause;
  gen();
 }
-
 function build(){
  const prev=first?null:st();
- O=S;['srcs','persbox','presets','outs'].forEach(i=>$(i).innerHTML='');
+ O=S;if(!Array.isArray(S.sources))S.sources=migrate(S);
+ ['srcs','persbox','presets','outs'].forEach(i=>$(i).innerHTML='');
  const miss=['ai_task_entity','tts_entity','speaker'].filter(k=>!O[k]);
  $('warn').textContent=miss.length?'Open Settings and set: '+miss.join(', '):'';
- sources().forEach(([k,l])=>chk($('srcs'),'s',k,l,k==='household'));
+ usable().forEach(s=>chk($('srcs'),'s',s.id,s.label,s.type==='household'));
  if(O.speaker&&O.tts_entity)chk($('outs'),'o','tts','Speak on main speaker (TTS)',1);
  (O.alexa_targets||[]).forEach(a=>chk($('outs'),'o','a:'+a,'Alexa: '+a,1));
  (O.notify_targets||[]).forEach(a=>chk($('outs'),'o','n:'+a,'Notify: '+a,0));
@@ -117,46 +159,30 @@ function build(){
  $('selwrap').style.display=hasSel?'':'none';$('usePers').checked=hasSel;
  $('len').value=O.default_length||1000;$('vol').value=O.default_volume||70;
  Object.entries(PRE).forEach(([k,p])=>{const b=el('button','',k);b.onclick=()=>{
-   const have=sources().map(x=>x[0]),miss=p.src.filter(x=>!have.includes(x));
-   $('pnote').textContent=miss.length?'Not set up yet (add in Settings): '+miss.join(', '):'';
-   applyState({name:p.name,src:p.src,task:p.task,outs:q('[data-o]').map(c=>c.dataset.o).filter(o=>!o.startsWith('n:')||p.notify)})};$('presets').appendChild(b)});
+   const have=usable().map(x=>x.type),miss=p.types.filter(t=>!have.includes(t));
+   $('pnote').textContent=miss.length?'No source set up for: '+miss.map(t=>TYPES[t]).join(', ')+' (add in Settings)':'';
+   applyState({name:p.name,src:usable().filter(x=>p.types.includes(x.type)).map(x=>x.id),task:p.task,outs:q('[data-o]').map(c=>c.dataset.o).filter(o=>!o.startsWith('n:')||p.notify)})};$('presets').appendChild(b)});
  if(first){first=false;try{mem=JSON.parse(localStorage.getItem('ann')||'{}')}catch(e){}$('task').value=PRE['Weather & News'].task;renderSaved();gen()}
  else applyState(prev);
 }
 
-function instr(s,rules){
- const has=x=>s.src.includes(x),L=[],W=O.weather_entity;
- L.push("Current time: {{ current_time }}. Use this to understand what 'tonight', 'this morning', 'Friday' etc. mean.");
- if(has('household')&&(O.household_context||O.combined_info_entity))L.push('Info about us and our friends: {{ combined_info }}');
- if(has('locations'))L.push(O.locations_entity?"Everyone's current location: {% for name, loc in locations.items() if name != 'friendly_name' %}{{ name }} is at {{ loc }}. {% endfor %}\nA location of Home means they are at our house.":"Where everyone is: {% for p in states.person %}{{ p.name }} is {{ p.state }}. {% endfor %}");
- if(has('weather'))L.push(`WEATHER: Right now it is {{ states('${W}') }}, {{ state_attr('${W}', 'temperature') | float(0) | round(0) | int }} degrees, humidity {{ state_attr('${W}', 'humidity') | float(0) | round(0) | int }} percent, wind {{ state_attr('${W}', 'wind_speed') | float(0) | round(0) | int }}.\nDaily forecast:\n{% for d in forecast_data['${W}']['forecast'][:7] %}- {{ d.datetime[:10] }}: {{ d.condition | default('unknown') }}, high {{ d.temperature | default(0) | float(0) | round(0) | int }}, low {{ d.templow | default(0) | float(0) | round(0) | int }}, rain {{ d.precipitation | default(0) | float(0) | round(2) }}\n{% endfor %}`+(O.inside_temp_entity?`Inside temp: {{ states('${O.inside_temp_entity}') | float(0) | round(0) | int }} degrees.`:''));
- if(has('news'))L.push(`NEWS (cover local first, then US, then world):\n{% for a in (state_attr('${O.news_entity}', 'entries') or [])[:25] %}- {{ a.title }}: {{ a.summary }}\n{% endfor %}`);
- if(has('calendar'))L.push("CALENDAR (next 7 days, grouped by calendar; no events means nothing is on):\n{% for cal, d in calendars.items() %}[{{ cal }}]\n{% for e in d.events %}- {{ e.summary }}: {{ e.start }}\n{% else %}(no events)\n{% endfor %}{% endfor %}");
- if(has('todo'))L.push(`TO-DO LIST:\n{% for item in items.get('${O.todo_entity}', {}).get('items', []) %}- {{ item.summary }}{% if item.get('due') %} (due {{ item.get('due') }}){% endif %}\n{% else %}Nothing on the list.\n{% endfor %}`);
- if(has('trash'))L.push(`TRASH: {{ 'Trash pickup is tomorrow, remind us to take it to the curb.' if is_state('${O.trash_entity}', 'on') else 'No trash pickup tomorrow, do not mention trash.' }}`);
- (O.custom_sources||[]).forEach((c,i)=>{if(has('c'+i))L.push(c.label+': '+(c.attribute?`{{ state_attr('${c.entity}', '${c.attribute}') }}`:`{{ states('${c.entity}') }} {{ states.${c.entity}.attributes | default('', true) }}`))});
- L.push("YOUR TASK: "+(s.task||"Give a short, useful rundown of the information above."));
- L.push("STYLE: "+rules+"\nNo markdown, bullet points, quotation marks or emojis. Keep it under "+s.len+" characters. One continuous flowing monologue that sounds natural read aloud by text-to-speech.");
- if(s.json)L.push('Output ONLY a JSON object, no code fences, no other text, exactly like this:\n{"speech": "the full monologue", "notification": "one short sentence banner under 100 characters"}');
- return L.join('\n\n');
-}
-
-function gen(){
- const s=st(),has=x=>s.src.includes(x),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag,
+function makeYaml(s0,o){
+ o=o||{};const s=o.silent?Object.assign({},s0,{outs:[],json:false,pause:false}):s0;
+ const chosen=s.src.map(id=>usable().find(x=>x.id===id)).filter(Boolean),n=JSON.stringify(s.name||'Announcement'),A=O.speaker||'media_player.SET_ME',players=O.music_players||[],flag=O.talking_flag,
   sp_on=s.outs.includes('tts')&&!!O.tts_entity&&!!O.speaker,al=(O.alexa_targets||[]).filter(a=>s.outs.includes('a:'+a)),nt=(O.notify_targets||[]).filter(a=>s.outs.includes('n:'+a)),speak=sp_on||al.length>0;
  let y='alias: '+n+"\ndescription: Made with Announcement Maker\nsequence:\n  - variables:\n      current_time: '{{ now().strftime(''%A, %B %-d %Y %-I:%M %p %Z'') }}'\n";
- if(has('household')&&(O.household_context||O.combined_info_entity)){
-  const e=O.combined_info_entity,a=O.combined_info_attribute;
-  const t=((O.household_context||'')+(e?' {{ '+(a?`state_attr('${e}', '${a}')`:`states('${e}')`)+' }}':'')).trim();
-  y+="      combined_info: "+JSON.stringify(t)+"\n"}
- if(has('locations')&&O.locations_entity)y+=`      locations: '{{ states.${O.locations_entity}.attributes | default({}, true) }}'\n`;
- if(has('weather'))y+=`  - alias: Get daily forecast\n    action: weather.get_forecasts\n    target:\n      entity_id: ${O.weather_entity}\n    data:\n      type: daily\n    response_variable: forecast_data\n`;
- if(has('calendar'))y+="  - alias: Get calendar events\n    action: calendar.get_events\n    target:\n      entity_id:\n"+O.calendar_entities.map(c=>"        - "+c).join('\n')+"\n    data:\n      start_date_time: \"{{ now().strftime('%Y-%m-%d 00:00:00') }}\"\n      duration:\n        days: 7\n    response_variable: calendars\n";
- if(has('todo'))y+=`  - action: todo.get_items\n    target:\n      entity_id: ${O.todo_entity}\n    data:\n      status: needs_action\n    response_variable: items\n`;
+ chosen.forEach(c=>{y+=genPre(c)});
+ if(chosen.length)y+="  - alias: Load data sources\n    variables:\n"+chosen.map(c=>{const b=body(c).trim();return b?`      src_${c.id}: |-\n`+ind(b,8):`      src_${c.id}: ""`}).join('\n')+"\n";
  if(speak&&s.pause&&players.length)y+="  - alias: Pause music if playing\n    if:\n      - condition: state\n        entity_id:\n"+players.map(p=>"          - "+p).join('\n')+"\n        state: playing\n        match: any\n    then:\n      - action: media_player.media_pause\n        target:\n          entity_id: "+players[0]+"\n";
  if(speak&&flag)y+=`  - action: input_boolean.turn_on\n    target:\n      entity_id: ${flag}\n`;
  if(sp_on)y+=`  - delay:\n      seconds: 3\n  - action: media_player.volume_set\n    target:\n      entity_id: ${A}\n    data:\n      volume_level: ${s.vol}\n`;
- const task=r=>"- action: ai_task.generate_data\n  data:\n    task_name: "+n+"\n    entity_id: "+(O.ai_task_entity||'ai_task.SET_ME')+"\n    instructions: |-\n"+ind(instr(s,r),6)+"\n  response_variable: announcement";
+ const task=r=>{
+  const L=["Current time: {{ current_time }}. Use this to understand what 'tonight', 'this morning', 'Friday' etc. mean."];
+  chosen.forEach(c=>L.push(c.label.toUpperCase()+":\n{{ src_"+c.id+" }}"));
+  L.push("YOUR TASK: "+(s.task||"Give a short, useful rundown of the information above."));
+  L.push("STYLE: "+r+"\nNo markdown, bullet points, quotation marks or emojis. Keep it under "+s.len+" characters. One continuous flowing monologue that sounds natural read aloud by text-to-speech.");
+  if(s.json)L.push('Output ONLY a JSON object, no code fences, no other text, exactly like this:\n{"speech": "the full monologue", "notification": "one short sentence banner under 100 characters"}');
+  return "- action: ai_task.generate_data\n  data:\n    task_name: "+n+"\n    entity_id: "+(O.ai_task_entity||'ai_task.SET_ME')+"\n    instructions: |-\n"+ind(L.join('\n\n'),6)+"\n  response_variable: announcement"};
  if(s.usePers){
   y+="  - alias: Generate announcement\n    choose:\n";
   Object.keys(s.pers).forEach(k=>{y+=`      - conditions:\n          - condition: state\n            entity_id: ${O.personality_select}\n            state: ${JSON.stringify(k)}\n        sequence:\n`+ind(task(s.pers[k]),10)+"\n"});
@@ -169,20 +195,24 @@ function gen(){
  const ne=nt.filter(i=>!isSvc(i)),ns=nt.filter(isSvc),msg="          title: "+n+"\n          message: '{{ (announcement.data | from_json).notification }}'\n";
  if(ne.length)y+="      - action: notify.send_message\n        target:\n          entity_id:\n"+ne.map(a=>"            - "+a).join('\n')+"\n        data:\n"+msg;
  ns.forEach(a=>{y+="      - action: "+a+"\n        data:\n"+msg});
- if(!sp_on&&!al.length&&!nt.length){y+="      - delay:\n          seconds: 1\n";$('msg').textContent='Pick at least one output under Where it goes.'}
+ if(!sp_on&&!al.length&&!nt.length)y+="      - delay:\n          seconds: 1\n";
  if(sp_on)y+=`  - delay:\n      seconds: 15\n  - wait_for_trigger:\n      - trigger: state\n        entity_id: ${A}\n        to:\n          - paused\n          - idle\n    timeout:\n      seconds: 120\n    continue_on_timeout: true\n  - delay:\n      seconds: 5\n`;
  else if(al.length)y+="  - delay:\n      seconds: 40\n";
  if(speak&&flag)y+=`  - action: input_boolean.turn_off\n    target:\n      entity_id: ${flag}\n`;
  if(speak&&s.pause&&players.length)y+="  - if:\n      - condition: state\n        entity_id: "+players[0]+"\n        state: paused\n    then:\n      - action: media_player.media_play\n        target:\n          entity_id: "+players[0]+"\n";
- $('out').textContent=y;
+ return y;
+}
+function gen(){
+ const s=st();$('out').textContent=makeYaml(s);
  $('onewrap').style.display=s.usePers?'none':'block';$('volv').textContent=Math.round(s.vol*100);
+ const none=!s.src.length?'Tick at least one data source.':!s.outs.length?'Pick at least one output under Where it goes (or just use the test buttons).':'';
+ $('msg').textContent=none;
 }
 document.addEventListener('input',e=>{if(e.target.closest('#v-create'))gen()});document.addEventListener('change',e=>{if(e.target.closest('#v-create'))gen()});
 
-async function api(path,body){const r=await fetch('./api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json()}
 const post=path=>api(path,{id:slug($('name').value),yaml:$('out').textContent});
 $('push').onclick=async()=>{$('msg').textContent='Pushing...';try{const r=await post('push');$('msg').textContent=r.ok?'Done. Created '+r.entity+' in Home Assistant.':(r.detail||r.error)}catch(e){$('msg').textContent='Failed: '+e}};
-$('run').onclick=async()=>{$('msg').textContent='Starting...';try{const r=await post('run');$('msg').textContent=r.ok?'Started. Push first if you changed anything.':r.detail}catch(e){$('msg').textContent='Failed: '+e}};
+$('run').onclick=async()=>{$('msg').textContent='Starting...';try{const r=await post('run');$('msg').textContent=r.ok?'Started the saved script.':r.detail}catch(e){$('msg').textContent='Failed: '+e}};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('out').textContent);$('msg').textContent='Copied.'}catch(e){const r=document.createRange();r.selectNodeContents($('out'));getSelection().removeAllRanges();getSelection().addRange(r);$('msg').textContent='Selected. Press Copy on your device.'}};
 const persist=()=>{try{localStorage.setItem('ann',JSON.stringify(mem))}catch(e){}};
 function renderSaved(){
@@ -192,6 +222,26 @@ function renderSaved(){
   ld.onclick=()=>applyState(mem[n]);rm.onclick=()=>{delete mem[n];persist();renderSaved()};d.append(lb,ld,rm);box.appendChild(d)});
 }
 $('save').onclick=()=>{const s=st();mem[s.name||'Untitled']=s;persist();renderSaved();$('msg').textContent='Saved.'};
+
+/* ---------- test run ---------- */
+const pre=t=>el('pre','',t==null?'':String(t));
+function showTest(r){
+ const b=$('tres');b.innerHTML='';
+ if(r.status==='running'){b.append(el('p','mu','Running... with sound this can take a couple of minutes.'));return}
+ if(r.status==='error'){b.append(el('p','warn','Test failed:'),pre(r.error));return}
+ if(r.speech!=null)b.append(el('p','','What it said:'),pre(r.speech));
+ const d=el('details');d.open=r.speech==null;d.append(el('summary','','What the AI saw (each data source)'));
+ Object.entries(r.sources||{}).forEach(([k,v])=>d.append(el('p','mu',k.replace('src_','')),pre(v)));b.append(d);
+}
+async function runTest(mode){
+ const s=st();if(!s.src.length){$('tres').textContent='Tick at least one data source first.';return}
+ const btns=['t-data','t-text','t-full'].map($);btns.forEach(x=>x.disabled=true);
+ try{const r=await api('test',{mode,yaml:makeYaml(s,{silent:mode!=='full'})});
+  if(r.ok===false){$('tres').textContent=r.error;return}
+  for(let i=0;i<200;i++){const t=await (await fetch('./api/test')).json();showTest(t);if(t.status!=='running')break;await sleep(2500)}
+ }catch(e){$('tres').textContent='Failed: '+e}finally{btns.forEach(x=>x.disabled=false)}
+}
+$('t-data').onclick=()=>runTest('data');$('t-text').onclick=()=>runTest('text');$('t-full').onclick=()=>runTest('full');
 
 /* ---------- entity picker ---------- */
 function picker(doms,multi,get,set){
@@ -219,16 +269,16 @@ function drawHelper(){
  wb.onclick=async()=>{
   if(!HEL.idea.trim()){wr.textContent='Type what you want first.';return}
   wr.textContent='Asking your AI Task...';wb.disabled=true;
-  try{const r=await api('helper',{mode:'instructions',idea:HEL.idea,ai:aiName(),sources:sources().map(([id,label])=>({id,label})),calendars:O.calendar_entities||[]});
+  try{const r=await api('helper',{mode:'instructions',idea:HEL.idea,ai:aiName(),sources:usable().map(x=>({id:x.id,label:x.label+' ('+x.type+')'})),calendars:(S.sources||[]).filter(x=>x.type==='calendar').flatMap(x=>x.entities)});
    if(!r.ok){wr.textContent=r.error;return}
    wr.innerHTML='';const nm=el('input');nm.value=r.name||'';const tk=el('textarea');tk.value=r.task;
-   const labels=sources().filter(([id])=>r.sources.includes(id)).map(x=>x[1]);
+   const labels=usable().filter(x=>r.sources.includes(x.id)).map(x=>x.label);
    wr.append(el('label','','Script name'),nm,el('label','','Instructions (edit if you like)'),tk,el('p','mu','Will tick: '+(labels.join(', ')||'nothing extra')));
    const ub=el('button','p','Use in Create');ub.onclick=()=>{applyState(Object.assign(st(),{name:nm.value||st().name,src:r.sources.length?r.sources:st().src,task:tk.value}));showTab('create')};wr.appendChild(ub);
   }catch(e){wr.textContent='Failed: '+e}finally{wb.disabled=false}};
  a.append(idea,wb,wr);
  const b=sec('Test an entity');
- b.append(el('p','mu','Pick an entity and say what you want from it. The AI finds the right attribute and adds it as a custom source.'),el('label','','Entity'),picker(null,false,()=>HEL.entity?[HEL.entity]:[],x=>{HEL.entity=x[0]||''}),el('label','','What do you want from it?'));
+ b.append(el('p','mu','Pick an entity and say what you want from it. The AI finds the right attribute and adds it as an info source.'),el('label','','Entity'),picker(null,false,()=>HEL.entity?[HEL.entity]:[],x=>{HEL.entity=x[0]||''}),el('label','','What do you want from it?'));
  const gt=el('textarea');gt.placeholder='e.g. Days left until the concert and where it is';gt.value=HEL.goal;gt.oninput=()=>{HEL.goal=gt.value};
  const tb=el('button','p','Test it'),res=el('div');
  tb.onclick=async()=>{
@@ -236,42 +286,67 @@ function drawHelper(){
   res.textContent='Asking your AI Task...';tb.disabled=true;
   try{const r=await api('helper',{entity:HEL.entity,goal:HEL.goal,ai:aiName()});
    if(!r.ok){res.textContent=r.error;return}
-   res.innerHTML='';res.append(el('p','','Suggested: '+r.label+(r.attribute?' (attribute: '+r.attribute+')':' (whole entity)')),el('p','mu',r.note),el('p','mu','Preview: '+r.preview));
-   const ab=el('button','p','Add as custom source');
-   ab.onclick=async()=>{(S.custom_sources=S.custom_sources||[]).push({label:r.label,entity:HEL.entity,attribute:r.attribute});await saveSettings();ab.textContent='Added and saved';ab.disabled=true};
+   res.innerHTML='';res.append(el('p','',"Suggested: "+r.label+(r.attribute?' (attribute: '+r.attribute+')':' (whole entity)')),el('p','mu',r.note),el('p','mu','Preview: '+r.preview));
+   const ab=el('button','p','Add as info source');
+   ab.onclick=async()=>{S.sources.push(mk(S.sources,'entity',{label:r.label,entity:HEL.entity,attribute:r.attribute}));await saveSettings();ab.textContent='Added and saved';ab.disabled=true};
    res.appendChild(ab);
   }catch(e){res.textContent='Failed: '+e}finally{tb.disabled=false}};
  b.append(gt,tb,res);
 }
 
 /* ---------- settings tab ---------- */
-const ROLES=[['Core',[['ai_task_entity','AI Task (writes the text)',['ai_task']],['tts_entity','Text-to-speech engine',['tts']],['speaker','Main speaker',['media_player']],['alexa_targets','Extra Alexa speakers',['media_player'],1],['notify_targets','Phone notifications (type or pick; phones show as "service")',['notify'],1],['music_players','Music players to pause',['media_player'],1],['talking_flag','Talking flag (optional)',['input_boolean']],['personality_select','Personality dropdown (optional)',['input_select']]]],
-['Info sources',[['weather_entity','Weather',['weather']],['inside_temp_entity','Inside temperature',['sensor']],['news_entity','News feed sensor',['sensor']],['calendar_entities','Calendars',['calendar'],1],['todo_entity','To-do list',['todo']],['trash_entity','Trash day entity',['schedule','binary_sensor','input_boolean']],['locations_entity','Locations sensor (optional, blank = people)',['sensor']],['combined_info_entity','Extra context sensor (optional)',['sensor']]]]];
-async function saveSettings(){
- S.custom_sources=(S.custom_sources||[]).filter(c=>c.label&&c.entity);
- S=await api('settings',S);build();drawHelper();drawSettings();
+const ROLES=[['Core',[['ai_task_entity','AI Task (writes the text)',['ai_task']],['tts_entity','Text-to-speech engine',['tts']],['speaker','Main speaker',['media_player']],['alexa_targets','Extra Alexa speakers',['media_player'],1],['notify_targets','Phone notifications (type or pick; phones show as "service")',['notify'],1],['music_players','Music players to pause',['media_player'],1],['talking_flag','Talking flag (optional)',['input_boolean']],['personality_select','Personality dropdown (optional)',['input_select']]]]];
+async function saveSettings(){S=await api('settings',S);if(!Array.isArray(S.sources))S.sources=[];build();drawHelper();drawSettings()}
+function varNames(s){return {weather:'fc_'+s.id+' (forecast response)',calendar:'cal_'+s.id+' (events response)',todo:'todo_'+s.id+' (items response)'}[s.type]||''}
+function editor(s,card){
+ const box=el('div'),f=(l,node)=>box.append(el('label','',l),node);
+ const tpl=el('textarea','code');
+ const sync=()=>{if(!s.template)tpl.value=auto(s)};
+ const txt=(k,ph)=>{const i=el('input');i.placeholder=ph||'';i.value=s[k]||'';i.oninput=()=>{s[k]=i.value;sync()};return i};
+ const one=(k,d,l)=>f(l,picker(d,false,()=>s[k]?[s[k]]:[],a=>{s[k]=a[0]||'';sync()}));
+ f('Name (shown in Create and told to the AI)',(()=>{const i=el('input');i.value=s.label;i.oninput=()=>{s.label=i.value};return i})());
+ if(s.type==='household'){const t=el('textarea');t.value=s.text||'';t.placeholder='Who lives here, pets, friends, running jokes...';t.oninput=()=>{s.text=t.value;sync()};f('Text',t);one('entity',null,'Extra entity to append (optional)');f('Its attribute (blank = state)',txt('attribute'))}
+ if(s.type==='locations')one('entity',DOMS.locations,'Sensor whose attributes are name: place (blank = use people)');
+ if(s.type==='weather'){one('entity',DOMS.weather,'Weather entity');one('extra',['sensor'],'Inside temperature sensor (optional)')}
+ if(s.type==='news')one('entity',DOMS.news,'News feed sensor (needs an "entries" attribute)');
+ if(s.type==='calendar'){f('Calendars',picker(DOMS.calendar,true,()=>s.entities||[],a=>{s.entities=a;sync()}));const d=el('input');d.type='number';d.value=s.days||7;d.oninput=()=>{s.days=+d.value||7;sync()};f('Days ahead',d)}
+ if(s.type==='todo')one('entity',DOMS.todo,'To-do list');
+ if(s.type==='trash')one('entity',DOMS.trash,'Entity that is on when pickup is tomorrow');
+ if(s.type==='entity'){one('entity',null,'Entity');f('Attribute (blank = state + all attributes)',txt('attribute'))}
+ tpl.value=body(s);tpl.oninput=()=>{if(s.type==='template')s.template=tpl.value;else s.template=tpl.value===auto(s)?'':tpl.value};
+ const hint=varNames(s);
+ box.append(el('label','',s.type==='template'?'Template (Home Assistant Jinja)':'Template the script uses (edit to fix it)'),tpl,
+  el('p','mu',(hint?'Available variable: '+hint+'. ':'')+'This text becomes variable src_'+s.id+'. Use Preview data in Create to see what it renders.'));
+ if(s.type!=='template'){const rs=el('button','','Reset template to auto');rs.onclick=()=>{s.template='';tpl.value=auto(s)};box.appendChild(rs)}
+ return box;
 }
 function drawSettings(){
  const v=$('v-set');v.innerHTML='';
  const sec=t=>{const s=el('section');s.appendChild(el('h2','',t));v.appendChild(s);return s};
  if(!ENT.length)v.appendChild(el('p','warn','Could not load your entity list from Home Assistant. You can still type entity ids into any field. Check the add-on Log tab.'));
  ROLES.forEach(([t,items])=>{const s=sec(t);items.forEach(([k,l,d,m])=>{s.appendChild(el('label','',l));s.appendChild(picker(d,!!m,()=>m?(S[k]||[]):(S[k]?[S[k]]:[]),a=>{S[k]=m?a:(a[0]||'')}))})});
- const s2=sec('Context & text');
- [['household_context','Who lives here, pets, friends (free text)','t'],['combined_info_attribute','Extra context sensor: attribute to read (blank = its state)','i'],['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
+ const si=sec('Info sources');si.appendChild(el('p','mu','These feed the "Data to include" list. Edit one to fix it, delete ones you do not want, or add more.'));
+ const ok=new Set(usable().map(x=>x.id));
+ (S.sources||[]).forEach((s,i)=>{
+  const card=el('div','box'),top=el('div','top');
+  top.append(el('b','',s.label+'  \u00b7  '+TYPES[s.type]+(s.template&&s.type!=='template'?' \u00b7 custom template':'')));
+  const eb=el('button','',OPEN===s.id?'Close':'Edit');eb.onclick=()=>{OPEN=OPEN===s.id?'':s.id;drawSettings()};
+  const db=el('button','','Delete');let armed=false;db.onclick=()=>{if(!armed){armed=true;db.textContent='Tap again';setTimeout(()=>{armed=false;db.textContent='Delete'},3000);return}S.sources.splice(i,1);if(OPEN===s.id)OPEN='';drawSettings()};
+  top.append(eb,db);card.appendChild(top);
+  if(!ok.has(s.id))card.appendChild(el('p','warn','Needs an entity or template before it shows up in Create.'));
+  if(OPEN===s.id)card.appendChild(editor(s,card));
+  si.appendChild(card)});
+ const addrow=el('div','row'),sel=el('select');Object.entries(TYPES).forEach(([k,l])=>{const o=el('option','',l);o.value=k;sel.appendChild(o)});sel.style.width='auto';
+ const ab=el('button','','+ Add source');ab.onclick=()=>{const n=mk(S.sources,sel.value);S.sources.push(n);OPEN=n.id;drawSettings()};addrow.append(sel,ab);si.appendChild(addrow);
+ const s2=sec('Styles & defaults');
+ [['hype_style','Hype style','t'],['roast_style','Roast style','t'],['sweet_style','Sweetie Pie style','t'],['default_volume','Default volume %','n'],['default_length','Default length (characters)','n']].forEach(([k,l,t])=>{
   s2.appendChild(el('label','',l));const f=el(t==='t'?'textarea':'input');if(t==='n')f.type='number';f.value=S[k]??'';f.oninput=()=>{S[k]=t==='n'?+f.value:f.value};s2.appendChild(f)});
- const s3=sec('Custom sources (concerts, sports, PS5, anything)'),rows=el('div');s3.appendChild(rows);
- const dr=()=>{rows.innerHTML='';(S.custom_sources=S.custom_sources||[]).forEach((r,i)=>{const bx=el('div','box');
-  const lb=el('input');lb.placeholder='Label, e.g. Concert 1';lb.value=r.label||'';lb.oninput=()=>{r.label=lb.value};
-  const at=el('input');at.placeholder='Attribute (optional)';at.value=r.attribute||'';at.oninput=()=>{r.attribute=at.value};
-  const rm=el('button','','Remove');rm.onclick=()=>{S.custom_sources.splice(i,1);dr()};
-  bx.append(lb,picker(null,false,()=>r.entity?[r.entity]:[],a=>{r.entity=a[0]||''}),at,rm);rows.appendChild(bx)})};
- dr();const ad=el('button','','+ Add source');ad.onclick=()=>{S.custom_sources.push({label:'',entity:'',attribute:''});dr()};s3.appendChild(ad);
  const s4=sec('Save'),io=el('textarea');io.placeholder='Export shows your settings here. Paste settings here and tap Import.';io.style.minHeight='90px';
  const r=el('div','row'),bs=el('button','p','Save settings'),ba=el('button','','Auto-fill empty'),be=el('button','','Export'),bi=el('button','','Import');
  bs.onclick=async()=>{await saveSettings();$('smsg').textContent='Saved.'};
  ba.onclick=()=>{let n=0;ROLES.forEach(([,it])=>it.forEach(([k,,d,m])=>{if(m||S[k])return;const c=ENT.filter(e=>d.includes(e.id.split('.')[0]));if(c.length===1){S[k]=c[0].id;n++}}));drawSettings();$('smsg').textContent='Filled '+n+' (only where one match existed). Save to keep.'};
  be.onclick=()=>{io.value=JSON.stringify(S,null,1)};
- bi.onclick=()=>{try{S=Object.assign({},S,JSON.parse(io.value));drawSettings();$('smsg').textContent='Imported. Review, then Save.'}catch(e){$('smsg').textContent='That is not valid JSON.'}};
+ bi.onclick=()=>{try{const j=JSON.parse(io.value);S=Object.assign({},S,j);if(!Array.isArray(j.sources))S.sources=migrate(S);drawSettings();$('smsg').textContent='Imported. Review, then Save.'}catch(e){$('smsg').textContent='That is not valid JSON.'}};
  r.append(bs,ba,be,bi);s4.append(r,io,Object.assign(el('p','mu',''),{id:'smsg'}));
 }
 
